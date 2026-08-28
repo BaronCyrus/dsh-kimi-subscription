@@ -1,0 +1,29 @@
+name: Feature request
+description: Suggest an improvement to the Kimi subscription integration.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What workflow or limitation should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: policy
+    attributes:
+      label: Kimi Code usage boundary
+      options:
+        - label: This request is intended for interactive use and does not require subscription resale or batch automation.
+          required: true

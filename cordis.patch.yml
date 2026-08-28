@@ -1,0 +1,5 @@
+# Register the dedicated Kimi Code subscription route and its settings surface.
+# The route is intentionally separate from llm-pi-ai's kimi-coding API-key route.
+- insert:
+    - id: kimi-subscription
+      name: 'dsh-kimi-subscription'

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/BaronCyrus/dsh-kimi-subscription/security/advisories/new
+    about: Report credentials or security-sensitive issues privately.
+  - name: Kimi Code documentation
+    url: https://www.kimi.com/code/docs/en/
+    about: Check membership, model, quota, and provider policy documentation.
