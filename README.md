@@ -13,6 +13,8 @@
 
 [快速开始](#快速开始) · [功能](#功能) · [本地开发](#本地开发) · [安全边界](#安全边界)
 
+<img width="803" height="553" alt="截屏2026-08-28 12 23 06" src="https://github.com/user-attachments/assets/39f2125a-998c-412c-a02f-f256ea1c651b" />
+
 </div>
 
 ## 快速开始
