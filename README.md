@@ -83,7 +83,7 @@ pnpm run check
 dsh plugin --profile web add /absolute/path/to/dsh-kimi-subscription
 ```
 
-修改后运行 `pnpm run test` 和 `pnpm run build`，再手动重启 DSH。发布包由 `pnpm run check` 生成到 `.artifacts/`。
+修改后运行 `pnpm run test` 和 `pnpm run build`，再手动重启 DSH。发布包由 `pnpm run check` 生成到 `.artifacts/`。使用 Agent 迭代或发布时请遵循 [AGENTS.md](AGENTS.md)。
 
 ## 更新与卸载
 

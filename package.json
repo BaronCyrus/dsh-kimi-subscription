@@ -15,6 +15,7 @@
     "lib/*.js",
     "cordis.patch.yml",
     "README.md",
+    "AGENTS.md",
     "CHANGELOG.md",
     "SECURITY.md",
     "compatibility.json",
