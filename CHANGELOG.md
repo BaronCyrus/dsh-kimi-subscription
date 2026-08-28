@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1
+
+- Publish the plugin as the public npm package `dsh-kimi-subscription`.
+- Make npm the primary installation and update path while retaining GitHub Release tarballs.
+- Clarify that Kimi Code subscription credentials and Kimi Open Platform API keys are not interchangeable.
+
 ## 0.3.0 — 2026-04-02
 
 First public release.

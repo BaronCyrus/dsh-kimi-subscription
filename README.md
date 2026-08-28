@@ -7,6 +7,7 @@
 无需 Kimi Open Platform 按量计费密钥；订阅模型、登录与额度都留在 DSH 内。
 
 [![CI](https://github.com/BaronCyrus/dsh-kimi-subscription/actions/workflows/ci.yml/badge.svg)](https://github.com/BaronCyrus/dsh-kimi-subscription/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/dsh-kimi-subscription?logo=npm&label=npm)](https://www.npmjs.com/package/dsh-kimi-subscription)
 [![Release](https://img.shields.io/github/v/release/BaronCyrus/dsh-kimi-subscription?logo=github)](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest)
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/BaronCyrus/dsh-kimi-subscription?style=flat&logo=github&label=Star)](https://github.com/BaronCyrus/dsh-kimi-subscription/stargazers)
@@ -19,14 +20,17 @@
 
 ## 快速开始
 
-当前版本兼容 DeepSeek Harness `0.1.1-rc.2`。从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载 `.tgz`，然后安装到目标 profile：
+当前版本兼容 DeepSeek Harness `0.1.1-rc.2`。通过 npm 安装到目标 profile：
 
 ```sh
-curl -fL -o dsh-kimi-subscription-0.3.0.tgz \
-  https://github.com/BaronCyrus/dsh-kimi-subscription/releases/download/v0.3.0/dsh-kimi-subscription-0.3.0.tgz
-
-dsh plugin --profile web add ./dsh-kimi-subscription-0.3.0.tgz
+dsh plugin --profile web add dsh-kimi-subscription
 dsh plugin --profile web list dsh-kimi-subscription --depth 0
+```
+
+也可以从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载对应版本的 `.tgz` 后安装：
+
+```sh
+dsh plugin --profile web add ./dsh-kimi-subscription-0.3.1.tgz
 ```
 
 手动重启 DSH 后：
@@ -38,7 +42,7 @@ dsh plugin --profile web list dsh-kimi-subscription --depth 0
 
 <img width="796" height="139" alt="截屏2026-08-28 12 24 56" src="https://github.com/user-attachments/assets/90e68f0b-974b-4f19-a17d-5735773c3f98" />
 
-> 本项目当前通过 GitHub Release 分发，尚未发布到 npm。不要把 Kimi Open Platform 的按量计费密钥填入订阅设置。
+> 登录时请使用 Kimi Code 会员订阅 API Key 或设备登录；Kimi Open Platform 的按量计费 API Key 不适用于本插件。
 
 ## 功能
 
@@ -83,7 +87,13 @@ dsh plugin --profile web add /absolute/path/to/dsh-kimi-subscription
 
 ## 更新与卸载
 
-更新到新的 GitHub Release：
+更新到 npm 最新版：
+
+```sh
+dsh plugin --profile web add dsh-kimi-subscription@latest
+```
+
+也可以安装指定的 GitHub Release：
 
 ```sh
 dsh plugin --profile web add ./dsh-kimi-subscription-<version>.tgz
