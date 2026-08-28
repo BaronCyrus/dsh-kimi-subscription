@@ -34,6 +34,14 @@ test('client registers a removable settings section and never stores credentials
   assert.doesNotMatch(source, /localStorage|sessionStorage|accessToken|refreshToken/u)
 })
 
+test('client keeps usage reset time readable in light and dark themes', async () => {
+  const source = await text('src/client.jsx')
+  const resetRule = source.match(/\.kimiUsageReset\{[^}]*\}/u)
+  assert.ok(resetRule, 'expected a .kimiUsageReset style rule')
+  assert.match(resetRule[0], /color:var\(--dsw-alias-label-tertiary\)/u)
+  assert.doesNotMatch(resetRule[0], /label-dimmed/u)
+})
+
 test('host keeps subscription route separate from generic kimi-coding configuration', async () => {
   const [host, runtime] = await Promise.all([text('src/index.js'), text('src/pi-ai-runtime.js')])
   assert.match(host, /displayName:\s*DISPLAY_NAME/u)

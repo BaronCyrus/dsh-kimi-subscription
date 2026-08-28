@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2
+
+- Fix the Settings usage reset-time text color: it used the near-invisible `--dsw-alias-label-dimmed` token and now uses `--dsw-alias-label-tertiary`, which stays readable in both light and dark themes.
+
 ## 0.3.1
 
 - Publish the plugin as the public npm package `dsh-kimi-subscription`.
