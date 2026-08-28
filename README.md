@@ -36,6 +36,8 @@ dsh plugin --profile web list dsh-kimi-subscription --depth 0
 3. 在模型选择器中选择 **Kimi subscription** 分组的模型；
 4. 设置页会显示完整额度，输入框右侧会显示 `5h 82%　7d 64%`。
 
+<img width="796" height="139" alt="截屏2026-08-28 12 24 56" src="https://github.com/user-attachments/assets/90e68f0b-974b-4f19-a17d-5735773c3f98" />
+
 > 本项目当前通过 GitHub Release 分发，尚未发布到 npm。不要把 Kimi Open Platform 的按量计费密钥填入订阅设置。
 
 ## 功能
