@@ -41,6 +41,10 @@ test('plugin registers an isolated Kimi subscription group and loopback auth RPC
   assert.deepEqual(host.registered.map(item => item.providers), [[PROVIDER]])
   const adapter = host.registered[0].adapter
   assert.deepEqual(adapter.providerInfo(PROVIDER), { id: PROVIDER, name: DISPLAY_NAME })
+  const retryPolicy = adapter.providerRetryPolicy(PROVIDER)
+  assert.equal(retryPolicy.mode, 'normal')
+  assert.equal(retryPolicy.maxRetries, 2)
+  assert.ok(retryPolicy.retryableCodes.includes('AUTH'))
   const models = await adapter.listModels(PROVIDER)
   assert.ok(models.length > 0)
   assert.ok(models.every(model => model.provider === PROVIDER))

@@ -18,7 +18,9 @@ const REQUEST_IMAGE_MAX_BYTES = 1024 * 1024
 
 export function apply(ctx) {
   const store = new DshKimiCredentialStore(ctx.credentials, CREDENTIAL_REF)
-  const provider = createKimiSubscriptionProvider()
+  const provider = createKimiSubscriptionProvider({
+    onAuthRejected: () => store.markAccessRejected(),
+  })
   const authContext = Object.freeze({
     // Subscription credentials are explicitly stored by this plugin. Do not
     // silently fall back to a Kimi Open Platform environment credential.
@@ -38,6 +40,15 @@ export function apply(ctx) {
     requestImagePixelBudget: REQUEST_IMAGE_PIXEL_BUDGET,
     requestImageMaxBytes: REQUEST_IMAGE_MAX_BYTES,
     cacheRetention: 'short',
+    // A 401 from an expired-in-flight OAuth token is recoverable: the stream
+    // guard marks the token rejected, the retry re-resolves auth, and pi-ai
+    // refreshes under its serialized lock. Genuinely dead credentials still
+    // fail after the retries.
+    retryPolicy: {
+      mode: 'normal',
+      maxRetries: 2,
+      retryableCodes: ['EMPTY_RESPONSE', 'RATE_LIMIT', 'SERVER', 'TIMEOUT', 'TRANSPORT', 'AUTH'],
+    },
   })
   const profiles = new Map([[PROVIDER, profile]])
   const adapter = new PiAiAdapter({

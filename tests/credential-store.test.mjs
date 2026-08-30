@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { createKimiAuthService, DshKimiCredentialStore } from '../src/credential-store.js'
+import { createKimiAuthService, DshKimiCredentialStore, OAUTH_EXPIRY_LEEWAY_MS } from '../src/credential-store.js'
 import { PROVIDER } from '../src/constants.js'
 
 function memoryCredentials(initial) {
@@ -43,8 +43,30 @@ test('credential store persists API-key and OAuth credentials without exposing t
   await store.modify(PROVIDER, async () => oauth('one'))
   const oauthStatus = await auth.status()
   assert.equal(oauthStatus.method, 'oauth')
-  assert.equal(oauthStatus.expiresAt, oauth('one').expires)
+  assert.equal(oauthStatus.expiresAt, oauth('one').expires - OAUTH_EXPIRY_LEEWAY_MS)
   assert.doesNotMatch(JSON.stringify(oauthStatus), /access-one|refresh-one/u)
+})
+
+test('OAuth reads apply expiry leeway and an upstream rejection forces refresh', async () => {
+  const backend = memoryCredentials(JSON.stringify(oauth('one')))
+  const store = new DshKimiCredentialStore(backend, 'KIMI_CREDENTIAL')
+
+  const usable = await store.read(PROVIDER)
+  assert.equal(usable.expires, oauth('one').expires - OAUTH_EXPIRY_LEEWAY_MS)
+  assert.equal(usable.access, 'access-one')
+
+  store.markAccessRejected()
+  const marked = await store.read(PROVIDER)
+  assert.equal(marked.expires, 0)
+  assert.equal(marked.access, 'access-one')
+
+  // A rotated token clears the rejection mark and keeps only the leeway.
+  await store.modify(PROVIDER, async () => oauth('two'))
+  const rotated = await store.read(PROVIDER)
+  assert.equal(rotated.expires, oauth('two').expires - OAUTH_EXPIRY_LEEWAY_MS)
+
+  // The persisted record always keeps the true expiry from the token endpoint.
+  assert.equal(JSON.parse(backend.readRaw()).expires, oauth('two').expires)
 })
 
 test('refresh rotations are serialized', async () => {

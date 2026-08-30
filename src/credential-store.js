@@ -4,6 +4,14 @@ const abortIfNeeded = options => options?.signal?.throwIfAborted()
 const clone = value => value === undefined ? undefined : structuredClone(value)
 const LEGAL_API_KEY = /^[\x21-\x7E]+$/u
 
+/**
+ * Kimi Code OAuth access tokens live only ~15 minutes and the upstream may
+ * reject a token shortly before its nominal expiry (processing delay, clock
+ * skew, or rotation). Report expiry this much earlier so pi-ai refreshes
+ * before the request enters the danger window instead of after a 401.
+ */
+export const OAUTH_EXPIRY_LEEWAY_MS = 3 * 60 * 1000
+
 function assertProvider(providerId) {
   if (providerId !== PROVIDER) {
     throw new Error(`Kimi credential store does not own provider ${JSON.stringify(providerId)}`)
@@ -44,6 +52,8 @@ function parseCredential(value) {
 /** Adapt DSH's managed string credential service to pi-ai's typed store. */
 export class DshKimiCredentialStore {
   #chains = new Map()
+  #rejectedAccess
+  #rejectedDirty = false
 
   constructor(credentials, ref) {
     if (credentials === undefined || credentials === null) {
@@ -51,6 +61,15 @@ export class DshKimiCredentialStore {
     }
     this.credentials = credentials
     this.ref = ref
+  }
+
+  /**
+   * Mark the current OAuth access token as rejected by the upstream (HTTP
+   * 401). Synchronous on purpose: the next read reports the token as expired,
+   * so pi-ai's double-checked refresh produces a fresh token for the retry.
+   */
+  markAccessRejected() {
+    this.#rejectedDirty = true
   }
 
   #enqueue(providerId, operation, options) {
@@ -74,7 +93,17 @@ export class DshKimiCredentialStore {
     const hit = await this.credentials.resolve(this.ref)
     abortIfNeeded(options)
     if (hit?.value === undefined || hit.value === '') return undefined
-    return parseCredential(hit.value)
+    const credential = parseCredential(hit.value)
+    if (credential?.type !== 'oauth') return credential
+    if (this.#rejectedDirty) {
+      // Bind the rejection mark to the token that was current when it fired.
+      this.#rejectedDirty = false
+      this.#rejectedAccess = credential.access
+    }
+    const expires = credential.access === this.#rejectedAccess
+      ? 0
+      : credential.expires - OAUTH_EXPIRY_LEEWAY_MS
+    return { ...credential, expires }
   }
 
   read(providerId, options) {
@@ -118,6 +147,7 @@ export function createKimiAuthService(models, store) {
         authenticated: true,
         provider: PROVIDER,
         method: current.type === 'oauth' ? 'oauth' : 'api-key',
+        // Reads are leeway-adjusted, so this is the usable-until time.
         ...(current.type === 'oauth' ? { expiresAt: current.expires } : {}),
       }
     },

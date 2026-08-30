@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.3
+
+- Fix sporadic `API key is invalid` (HTTP 401) turn failures with OAuth device sign-in. Kimi Code access tokens live only ~15 minutes and pi-ai refreshed them only at their nominal expiry with zero leeway, so requests dispatched in the final moments of a token's life were rejected and the whole turn failed (AUTH was not retryable). OAuth credentials now refresh 3 minutes early; a pre-chunk 401 marks the access token as upstream-rejected so the next attempt force-refreshes under the serialized lock; and the provider retry policy retries AUTH failures up to 2 times, recovering expired-in-flight tokens transparently. Genuinely revoked credentials still fail after the retries.
+
 ## 0.3.2
 
 - Fix the Settings usage reset-time text color: it used the near-invisible `--dsw-alias-label-dimmed` token and now uses `--dsw-alias-label-tertiary`, which stays readable in both light and dark themes.
