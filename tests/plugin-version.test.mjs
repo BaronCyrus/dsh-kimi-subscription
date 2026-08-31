@@ -292,7 +292,11 @@ test('shared version timeouts clear the flight for the next read', async () => {
     fetchImpl: async (_url, init) => {
       requests += 1
       return new Promise((resolve, reject) => {
-        init.signal.addEventListener('abort', () => reject(init.signal.reason), { once: true })
+        const fallback = setTimeout(() => reject(new Error('test fetch did not abort')), 1_000)
+        init.signal.addEventListener('abort', () => {
+          clearTimeout(fallback)
+          reject(init.signal.reason)
+        }, { once: true })
       })
     },
   })

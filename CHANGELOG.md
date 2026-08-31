@@ -1,8 +1,13 @@
 # Changelog
 
-## 1.0.1
+## 1.0.2
 
 - Fix a cancellation race that could make both the subscription-usage and plugin-version cards show permanent errors after page startup or reload. Shared Host requests now survive one browser caller disconnecting, while that caller still cancels promptly and the bounded request can complete for other subscribers and populate the cache.
+- Keep the cancellation timeout regression tests alive reliably on the Node.js 22 CI runner.
+
+## 1.0.1
+
+Unpublished. The immutable tag is retained after its Node.js 22 CI run exposed a timeout-test harness issue; the corrected release is 1.0.2.
 
 ## 1.0.0
 
