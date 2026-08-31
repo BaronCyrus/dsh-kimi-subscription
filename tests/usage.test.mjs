@@ -212,3 +212,23 @@ test('a forced usage refresh remains privately cancellable', async () => {
   releaseShared()
   assert.equal((await shared).summary.remainingPercent, 60)
 })
+
+test('the default fetch is resolved per call across a sibling scoped-wrapper teardown', async () => {
+  const original = globalThis.fetch
+  // Mimic a sibling plugin's scoped proxy wrapper installed while this plugin
+  // loads: it forwards through a mutable fallback that is nulled on teardown.
+  let baseFetch = original
+  globalThis.fetch = (...args) => baseFetch(...args)
+  const reader = createKimiUsageReader({
+    getAuth: async () => ({ auth: { apiKey: 'subscription-secret' } }),
+  })
+  try {
+    // Scope ends: the ambient binding is restored and the wrapper dismantled.
+    globalThis.fetch = async () => ({ ok: true, status: 200, async json() { return payload } })
+    baseFetch = undefined
+    const usage = await reader.read()
+    assert.equal(usage.summary.remainingPercent, 60)
+  } finally {
+    globalThis.fetch = original
+  }
+})

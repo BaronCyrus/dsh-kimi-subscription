@@ -1,4 +1,4 @@
-import { waitForSharedRequest } from './shared-request.js'
+import { ambientFetch, waitForSharedRequest } from './shared-request.js'
 
 export const KIMI_USAGE_URL = 'https://api.kimi.com/coding/v1/usages'
 export const DEFAULT_USAGE_TTL_MS = 60_000
@@ -149,7 +149,7 @@ function statusError(status) {
 /** Cached, single-flight usage reader. Credentials and response bodies stay host-only. */
 export function createKimiUsageReader({
   getAuth,
-  fetchImpl = globalThis.fetch,
+  fetchImpl = ambientFetch,
   now = Date.now,
   url = KIMI_USAGE_URL,
   ttlMs = DEFAULT_USAGE_TTL_MS,

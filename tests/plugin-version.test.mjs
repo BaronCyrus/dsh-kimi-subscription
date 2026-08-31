@@ -357,3 +357,27 @@ test('a forced version refresh remains privately cancellable', async () => {
   releaseShared()
   assert.equal((await shared).latest, '1.0.1')
 })
+
+test('the default fetch is resolved per call across a sibling scoped-wrapper teardown', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'kimi-version-ambient-'))
+  const ownPackageJsonUrl = await npmInstall(root)
+  const original = globalThis.fetch
+  // Mimic a sibling plugin's scoped proxy wrapper installed while this plugin
+  // loads: it forwards through a mutable fallback that is nulled on teardown.
+  let baseFetch = original
+  globalThis.fetch = (...args) => baseFetch(...args)
+  const manager = createKimiPluginManager({
+    env: { DSH_HOME: root },
+    ownPackageJsonUrl,
+  })
+  try {
+    // Scope ends: the ambient binding is restored and the wrapper dismantled.
+    globalThis.fetch = async (url, init) => registryOk('0.4.0')(url, init)
+    baseFetch = undefined
+    const info = await manager.read()
+    assert.equal(info.latest, '0.4.0')
+    assert.equal(info.current, '0.3.3')
+  } finally {
+    globalThis.fetch = original
+  }
+})

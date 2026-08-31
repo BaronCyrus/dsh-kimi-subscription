@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+
+- Fix subscription-usage and plugin-version reads permanently failing (`无法读取订阅余量` / `无法检查最新版本`) on some host startups. Both readers captured the ambient `globalThis.fetch` when the plugin loaded; a sibling plugin that temporarily swaps `globalThis.fetch` with a scoped proxy wrapper during its own startup network work could leave these readers holding a dismantled wrapper whose fallback is nulled on teardown, failing every request for the process lifetime. The ambient fetch is now resolved per call, which stays correct whether or not such a wrapper is installed.
+
 ## 1.0.2
 
 - Fix a cancellation race that could make both the subscription-usage and plugin-version cards show permanent errors after page startup or reload. Shared Host requests now survive one browser caller disconnecting, while that caller still cancels promptly and the bounded request can complete for other subscribers and populate the cache.

@@ -4,7 +4,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { waitForSharedRequest } from './shared-request.js'
+import { ambientFetch, waitForSharedRequest } from './shared-request.js'
 
 export const PACKAGE_NAME = 'dsh-kimi-subscription'
 export const NPM_REGISTRY_LATEST_URL = `https://registry.npmjs.org/${PACKAGE_NAME}/latest`
@@ -145,7 +145,7 @@ function spawnRunCommand(argv, { signal, timeoutMs }) {
  * projection crosses RPC.
  */
 export function createKimiPluginManager({
-  fetchImpl = globalThis.fetch,
+  fetchImpl = ambientFetch,
   runCommand = spawnRunCommand,
   execPath = process.execPath,
   binPath = process.argv[1],

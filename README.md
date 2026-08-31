@@ -30,7 +30,7 @@ dsh plugin --profile web list dsh-kimi-subscription --depth 0
 也可以从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载对应版本的 `.tgz` 后安装：
 
 ```sh
-dsh plugin --profile web add ./dsh-kimi-subscription-1.0.2.tgz
+dsh plugin --profile web add ./dsh-kimi-subscription-1.0.3.tgz
 ```
 
 手动重启 DSH 后：
