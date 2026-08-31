@@ -231,3 +231,125 @@ test('loopback RPC exposes version and update endpoints with sanitized errors', 
     error: { code: 'bad-request', message: 'Kimi plugin version is unavailable', details: { issues: [] } },
   })
 })
+
+test('cancelled callers do not abort or evict a shared version request', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'kimi-version-cancel-'))
+  const ownPackageJsonUrl = await npmInstall(root, '1.0.0')
+  let requests = 0
+  let sharedSignal
+  let markStarted
+  let releaseRequest
+  const started = new Promise(resolve => { markStarted = resolve })
+  const released = new Promise(resolve => { releaseRequest = resolve })
+  const manager = createKimiPluginManager({
+    env: { DSH_HOME: root },
+    ownPackageJsonUrl,
+    fetchImpl: async (_url, init) => {
+      requests += 1
+      sharedSignal = init.signal
+      markStarted()
+      await released
+      init.signal.throwIfAborted()
+      return { ok: true, status: 200, async json() { return { version: '1.0.1' } } }
+    },
+  })
+  const firstController = new AbortController()
+  const secondController = new AbortController()
+  const firstReason = new DOMException('first caller left the page', 'AbortError')
+  const secondReason = new DOMException('second caller left the page', 'AbortError')
+  const first = assert.rejects(
+    manager.read({ signal: firstController.signal }),
+    error => error === firstReason,
+  )
+  await started
+  const second = assert.rejects(
+    manager.read({ signal: secondController.signal }),
+    error => error === secondReason,
+  )
+  firstController.abort(firstReason)
+  await first
+  assert.equal(sharedSignal.aborted, false)
+  const lateSubscriber = manager.read()
+  secondController.abort(secondReason)
+  await second
+  assert.equal(sharedSignal.aborted, false)
+  assert.equal(requests, 1, 'late subscribers keep joining the live shared request')
+  releaseRequest()
+  const info = await lateSubscriber
+  assert.equal(info.latest, '1.0.1')
+  await manager.read()
+  assert.equal(requests, 1, 'the surviving shared request still populates the cache')
+})
+
+test('shared version timeouts clear the flight for the next read', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'kimi-version-timeout-'))
+  const ownPackageJsonUrl = await npmInstall(root, '1.0.0')
+  let requests = 0
+  const manager = createKimiPluginManager({
+    env: { DSH_HOME: root },
+    ownPackageJsonUrl,
+    timeoutMs: 5,
+    fetchImpl: async (_url, init) => {
+      requests += 1
+      return new Promise((resolve, reject) => {
+        init.signal.addEventListener('abort', () => reject(init.signal.reason), { once: true })
+      })
+    },
+  })
+  const first = manager.read()
+  const second = manager.read()
+  await assert.rejects(first, /^Error: Kimi plugin version check failed$/u)
+  await assert.rejects(second, /^Error: Kimi plugin version check failed$/u)
+  assert.equal(requests, 1)
+  await assert.rejects(manager.read(), /^Error: Kimi plugin version check failed$/u)
+  assert.equal(requests, 2)
+})
+
+test('a forced version refresh remains privately cancellable', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'kimi-version-force-cancel-'))
+  const ownPackageJsonUrl = await npmInstall(root, '1.0.0')
+  let sharedSignal
+  let forcedSignal
+  let sharedStarted
+  let forcedStarted
+  let releaseShared
+  const sharedReady = new Promise(resolve => { sharedStarted = resolve })
+  const forcedReady = new Promise(resolve => { forcedStarted = resolve })
+  const sharedReleased = new Promise(resolve => { releaseShared = resolve })
+  let requests = 0
+  const manager = createKimiPluginManager({
+    env: { DSH_HOME: root },
+    ownPackageJsonUrl,
+    fetchImpl: async (_url, init) => {
+      requests += 1
+      if (requests === 1) {
+        sharedSignal = init.signal
+        sharedStarted()
+        await sharedReleased
+      } else {
+        forcedSignal = init.signal
+        forcedStarted()
+        await new Promise((resolve, reject) => {
+          init.signal.addEventListener('abort', () => reject(init.signal.reason), { once: true })
+        })
+      }
+      init.signal.throwIfAborted()
+      return { ok: true, status: 200, async json() { return { version: '1.0.1' } } }
+    },
+  })
+  const shared = manager.read()
+  await sharedReady
+  const controller = new AbortController()
+  const reason = new DOMException('forced refresh cancelled', 'AbortError')
+  const forced = assert.rejects(
+    manager.read({ force: true, signal: controller.signal }),
+    error => error === reason,
+  )
+  await forcedReady
+  controller.abort(reason)
+  await forced
+  assert.equal(forcedSignal.aborted, true)
+  assert.equal(sharedSignal.aborted, false)
+  releaseShared()
+  assert.equal((await shared).latest, '1.0.1')
+})

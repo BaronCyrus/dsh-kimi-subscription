@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- Fix a cancellation race that could make both the subscription-usage and plugin-version cards show permanent errors after page startup or reload. Shared Host requests now survive one browser caller disconnecting, while that caller still cancels promptly and the bounded request can complete for other subscribers and populate the cache.
+
 ## 1.0.0
 
 First stable release.

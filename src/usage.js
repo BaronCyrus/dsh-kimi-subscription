@@ -1,3 +1,5 @@
+import { waitForSharedRequest } from './shared-request.js'
+
 export const KIMI_USAGE_URL = 'https://api.kimi.com/coding/v1/usages'
 export const DEFAULT_USAGE_TTL_MS = 60_000
 export const DEFAULT_USAGE_TIMEOUT_MS = 15_000
@@ -180,18 +182,23 @@ export function createKimiUsageReader({
     async read({ force = false, signal } = {}) {
       signal?.throwIfAborted()
       if (!force && cached !== undefined && now() - cached.fetchedAt < ttlMs) return clone(cached)
-      const observedGeneration = generation
-      if (!force && inFlight !== undefined) return clone(await inFlight)
-      const pending = load(signal).then(value => {
-        if (generation === observedGeneration) cached = value
-        return value
-      })
-      if (!force) inFlight = pending
-      try {
-        return clone(await pending)
-      } finally {
-        if (inFlight === pending) inFlight = undefined
+      const createPending = requestSignal => {
+        const observedGeneration = generation
+        return load(requestSignal).then(value => {
+          if (generation === observedGeneration) cached = value
+          return value
+        })
       }
+      if (force) return clone(await createPending(signal))
+      const pending = inFlight ?? createPending()
+      if (inFlight === undefined) {
+        inFlight = pending
+        const clear = () => {
+          if (inFlight === pending) inFlight = undefined
+        }
+        void pending.then(clear, clear)
+      }
+      return clone(await waitForSharedRequest(pending, signal))
     },
     invalidate() {
       generation += 1

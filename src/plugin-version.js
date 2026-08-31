@@ -4,6 +4,8 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { waitForSharedRequest } from './shared-request.js'
+
 export const PACKAGE_NAME = 'dsh-kimi-subscription'
 export const NPM_REGISTRY_LATEST_URL = `https://registry.npmjs.org/${PACKAGE_NAME}/latest`
 export const DEFAULT_VERSION_TTL_MS = 5 * 60_000
@@ -214,18 +216,23 @@ export function createKimiPluginManager({
     async read({ force = false, signal } = {}) {
       signal?.throwIfAborted()
       if (!force && cached !== undefined && now() - cached.fetchedAt < ttlMs) return clone(cached)
-      const observedGeneration = generation
-      if (!force && inFlight !== undefined) return clone(await inFlight)
-      const pending = load(signal).then(value => {
-        if (generation === observedGeneration) cached = value
-        return value
-      })
-      if (!force) inFlight = pending
-      try {
-        return clone(await pending)
-      } finally {
-        if (inFlight === pending) inFlight = undefined
+      const createPending = requestSignal => {
+        const observedGeneration = generation
+        return load(requestSignal).then(value => {
+          if (generation === observedGeneration) cached = value
+          return value
+        })
       }
+      if (force) return clone(await createPending(signal))
+      const pending = inFlight ?? createPending()
+      if (inFlight === undefined) {
+        inFlight = pending
+        const clear = () => {
+          if (inFlight === pending) inFlight = undefined
+        }
+        void pending.then(clear, clear)
+      }
+      return clone(await waitForSharedRequest(pending, signal))
     },
 
     async update({ signal } = {}) {
