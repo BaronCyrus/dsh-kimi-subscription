@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0
+
+First stable release.
+
+- Show the current and latest plugin versions in the Settings Kimi subscription section. The latest version comes from public npm registry metadata (Host-side, timeout-bounded, redirects refused) and is cached for 5 minutes.
+- Add a one-click **Update plugin** button when a newer npm version exists. The update runs `dsh plugin --profile <owning profile> add dsh-kimi-subscription@<version>` on the Host; afterwards the settings page prompts to restart DSH or refresh the page, since the running host process keeps the old code until restarted. Local `link:`/`file:` development checkouts are reported but never updated in place.
+
 ## 0.3.3
 
 - Fix sporadic `API key is invalid` (HTTP 401) turn failures with OAuth device sign-in. Kimi Code access tokens live only ~15 minutes and pi-ai refreshed them only at their nominal expiry with zero leeway, so requests dispatched in the final moments of a token's life were rejected and the whole turn failed (AUTH was not retryable). OAuth credentials now refresh 3 minutes early; a pre-chunk 401 marks the access token as upstream-rejected so the next attempt force-refreshes under the serialized lock; and the provider retry policy retries AUTH failures up to 2 times, recovering expired-in-flight tokens transparently. Genuinely revoked credentials still fail after the retries.

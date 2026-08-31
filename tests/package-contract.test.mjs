@@ -30,6 +30,8 @@ test('client registers a removable settings section and never stores credentials
   assert.match(source, /login\/start/u)
   assert.match(source, /api-key\/set/u)
   assert.match(source, /call\(['"]usage['"]/u)
+  assert.match(source, /call\(['"]plugin\/version['"]/u)
+  assert.match(source, /call\(['"]plugin\/update['"]/u)
   assert.match(source, /remainingPercent/u)
   assert.doesNotMatch(source, /localStorage|sessionStorage|accessToken|refreshToken/u)
 })

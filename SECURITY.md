@@ -19,6 +19,7 @@ Do not open a public issue containing API keys, access tokens, refresh tokens, a
 - Browser code calls only a loopback-authorized RPC surface and receives redacted account or quota projections.
 - OAuth login links are restricted to official Kimi HTTPS origins.
 - Usage requests are Host-side, bounded by a timeout, refuse redirects, and never return bearer credentials or raw provider payloads to the browser.
+- Version checks fetch only public npm registry metadata (timeout-bounded, redirects refused); one-click updates execute the `dsh plugin` CLI Host-side and never expose process output to the browser.
 - The plugin defines no Kimi Open Platform or cross-provider fallback.
 - Prompts, model responses, and session content are not read or recorded by this plugin.
 

@@ -179,8 +179,8 @@ export class KimiLoginCoordinator {
   }
 }
 
-/** Map the loopback-only DSH Connection channel onto account and usage services. */
-export function createKimiRpcHandler(coordinator, { usageReader } = {}) {
+/** Map the loopback-only DSH Connection channel onto account, usage, and plugin services. */
+export function createKimiRpcHandler(coordinator, { usageReader, pluginManager } = {}) {
   return async (endpoint, payload, signal) => {
     try {
       signal.throwIfAborted()
@@ -192,6 +192,14 @@ export function createKimiRpcHandler(coordinator, { usageReader } = {}) {
       if (endpoint === 'usage') {
         if (usageReader === undefined) throw new Error('Kimi usage is unavailable')
         return ok(await usageReader.read({ force: input.force === true, signal }))
+      }
+      if (endpoint === 'plugin/version') {
+        if (pluginManager === undefined) throw new Error('Kimi plugin version is unavailable')
+        return ok(await pluginManager.read({ force: input.force === true, signal }))
+      }
+      if (endpoint === 'plugin/update') {
+        if (pluginManager === undefined) throw new Error('Kimi plugin update is unavailable')
+        return ok(await pluginManager.update({ signal }))
       }
       if (endpoint === 'api-key/set') {
         const status = await coordinator.setApiKey(input.apiKey, { signal })
@@ -207,7 +215,7 @@ export function createKimiRpcHandler(coordinator, { usageReader } = {}) {
     } catch (error) {
       if (signal.aborted) throw error
       const message = error instanceof Error
-        && /^(unknown Kimi|Kimi login|Kimi usage|Kimi Code subscription|Could not read Kimi Code subscription usage)/u.test(error.message)
+        && /^(unknown Kimi|Kimi login|Kimi usage|Kimi plugin|Kimi Code subscription|Could not read Kimi Code subscription usage)/u.test(error.message)
         ? error.message
         : 'Kimi request failed'
       return badRequest(message)

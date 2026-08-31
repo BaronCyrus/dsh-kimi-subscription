@@ -6,6 +6,7 @@ import { CHANNEL, CREDENTIAL_NAME, DISPLAY_NAME, PROVIDER } from './constants.js
 import { createKimiAuthService, DshKimiCredentialStore } from './credential-store.js'
 import { createKimiRpcHandler, KimiLoginCoordinator } from './login-coordinator.js'
 import { createKimiSubscriptionProvider, createModels } from './pi-ai-runtime.js'
+import { createKimiPluginManager } from './plugin-version.js'
 import { createKimiUsageReader, KIMI_USAGE_URL, parseKimiUsage } from './usage.js'
 
 export const name = 'kimi-subscription'
@@ -74,8 +75,9 @@ export function apply(ctx) {
 
   const auth = createKimiAuthService(authModels, store)
   const usageReader = createKimiUsageReader({ getAuth: () => authModels.getAuth(PROVIDER) })
+  const pluginManager = createKimiPluginManager()
   const coordinator = new KimiLoginCoordinator(auth)
-  const handler = createKimiRpcHandler(coordinator, { usageReader })
+  const handler = createKimiRpcHandler(coordinator, { usageReader, pluginManager })
   ctx.effect(
     () => ctx.connection.rpc.handle(CHANNEL, handler, { authority: 'loopback' }),
     'kimi-subscription: loopback account RPC',
@@ -87,6 +89,7 @@ export {
   DISPLAY_NAME,
   PROVIDER,
   createKimiAuthService,
+  createKimiPluginManager,
   createKimiRpcHandler,
   createKimiSubscriptionProvider,
   createKimiUsageReader,

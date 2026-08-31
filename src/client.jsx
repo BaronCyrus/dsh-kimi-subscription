@@ -56,6 +56,25 @@ const zh = {
   monthlySpend: '本月已用',
   quickUsageStatus: 'Kimi 订阅余量：{value}',
   interactiveOnly: 'Kimi Code 订阅仅用于交互式使用；批处理或转售场景请使用 Kimi Open Platform。',
+  versionTitle: '插件版本',
+  versionCurrent: '当前版本',
+  versionLatest: '最新版本',
+  versionCheck: '检查更新',
+  versionChecking: '正在检查更新…',
+  versionFailed: '无法检查最新版本。',
+  versionUpToDate: '已是最新版本。',
+  versionAvailable: '发现新版本 v{version}。',
+  versionLinked: '当前为本地开发安装，请在插件仓库拉取最新代码并重新构建。',
+  versionManual: '请在终端运行 dsh plugin --profile web add dsh-kimi-subscription@latest 完成更新。',
+  versionUpdate: '更新插件',
+  versionUpdating: '正在更新…',
+  versionUpdateFailed: '更新失败，请重试或在终端手动更新。',
+  versionUpdated: '已更新到 v{version}。',
+  versionUpdatedHint: '新版本需要重启 DSH 服务才能完全生效；仅刷新界面不会更新宿主进程中已加载的插件。',
+  versionRestart: '重启 DSH 服务',
+  versionRestartHint: '插件无法安全地重启宿主进程：请在运行 DSH 的终端按 Ctrl+C 结束进程，再重新运行 dsh web。',
+  versionRefresh: '刷新界面',
+  versionLater: '稍后',
 }
 
 const en = {
@@ -102,6 +121,25 @@ const en = {
   monthlySpend: 'Used this month',
   quickUsageStatus: 'Kimi subscription usage: {value}',
   interactiveOnly: 'Kimi Code subscriptions are for interactive use. Use Kimi Open Platform for batch processing or resale.',
+  versionTitle: 'Plugin version',
+  versionCurrent: 'Current version',
+  versionLatest: 'Latest version',
+  versionCheck: 'Check for updates',
+  versionChecking: 'Checking for updates…',
+  versionFailed: 'Could not check the latest version.',
+  versionUpToDate: 'You are on the latest version.',
+  versionAvailable: 'A new version v{version} is available.',
+  versionLinked: 'Installed from a local checkout; pull and rebuild the plugin repository to update.',
+  versionManual: 'Run dsh plugin --profile web add dsh-kimi-subscription@latest in a terminal to update.',
+  versionUpdate: 'Update plugin',
+  versionUpdating: 'Updating…',
+  versionUpdateFailed: 'The update failed. Try again or update manually in a terminal.',
+  versionUpdated: 'Updated to v{version}.',
+  versionUpdatedHint: 'The new version takes full effect after a DSH restart; refreshing the page alone does not reload the plugin inside the host process.',
+  versionRestart: 'Restart DSH',
+  versionRestartHint: 'The plugin cannot safely restart its host process: press Ctrl+C in the terminal running DSH, then run dsh web again.',
+  versionRefresh: 'Refresh page',
+  versionLater: 'Later',
 }
 
 const STYLE = `
@@ -117,6 +155,7 @@ const STYLE = `
 .kimiSubscriptionError{color:var(--dsw-alias-state-error-primary);font-size:13px;line-height:20px}.kimiSubscriptionPolicy{padding-top:2px;color:var(--dsw-alias-label-dimmed);font-size:11px;line-height:18px}
 .kimiUsageHeader{display:flex;align-items:center;justify-content:space-between;gap:12px}.kimiUsageList{display:flex;flex-direction:column;gap:14px}.kimiUsageItem{display:flex;flex-direction:column;gap:6px}.kimiUsageMeta{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:13px;line-height:20px}.kimiUsageLabel{font-weight:500}.kimiUsageNumbers{color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}.kimiUsageTrack{height:7px;overflow:hidden;border-radius:999px;background:var(--dsw-alias-bg-module-platform)}.kimiUsageFill{height:100%;border-radius:inherit;background:var(--dsw-alias-brand-primary);transition:width .2s ease}.kimiUsageReset{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:18px}.kimiUsageWallet{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:10px;border-top:1px solid var(--dsw-alias-border-l2);font-size:13px;line-height:20px}
 .kimiComposerUsage{display:inline-flex;align-items:center;flex:0 0 auto;height:28px;box-sizing:border-box;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:20px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;user-select:none}
+.kimiVersionRows{display:flex;flex-direction:column;gap:6px;font-size:13px;line-height:20px}.kimiVersionRow{display:flex;align-items:center;justify-content:space-between;gap:12px}.kimiVersionValue{color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}.kimiVersionUpdated{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:10px;background:var(--dsw-alias-bg-module-platform)}
 @media(max-width:640px){.kimiSubscriptionRow{align-items:flex-start;flex-direction:column}.kimiSubscriptionActions{width:100%}.kimiUsageHeader{align-items:flex-start;flex-direction:column}}
 `
 
@@ -204,6 +243,76 @@ function UsageCard({ call, t }) {
     {usage?.extraUsage ? <div className="kimiUsageWallet">
       <div><div className="kimiUsageLabel">{t('boosterBalance')}</div>{usage.extraUsage.monthlyChargeLimitEnabled ? <div className="kimiUsageReset">{t('monthlySpend')}：{formatMoney(usage.extraUsage.monthlyUsedCents, usage.extraUsage.currency)}</div> : null}</div>
       <div className="kimiUsageNumbers">{formatMoney(usage.extraUsage.balanceCents, usage.extraUsage.currency)} / {formatMoney(usage.extraUsage.totalCents, usage.extraUsage.currency)}</div>
+    </div> : null}
+  </div>
+}
+
+function VersionCard({ call, t }) {
+  const [info, setInfo] = useState()
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [updating, setUpdating] = useState(false)
+  const [updateFailed, setUpdateFailed] = useState(false)
+  const [updated, setUpdated] = useState()
+  const [restartHint, setRestartHint] = useState(false)
+  const generation = useRef(0)
+
+  const load = force => {
+    const current = ++generation.current
+    setLoading(true)
+    setError(false)
+    void call('plugin/version', { force }).then(value => {
+      if (generation.current === current) setInfo(value)
+    }).catch(() => {
+      if (generation.current === current) setError(true)
+    }).finally(() => {
+      if (generation.current === current) setLoading(false)
+    })
+  }
+
+  useEffect(() => {
+    load(false)
+    return () => { generation.current += 1 }
+  }, [])
+
+  const update = () => {
+    setUpdating(true)
+    setUpdateFailed(false)
+    void call('plugin/update').then(value => {
+      setUpdated(value)
+      setRestartHint(false)
+    }).catch(() => setUpdateFailed(true)).finally(() => setUpdating(false))
+  }
+
+  const installKind = info?.install?.kind
+  const showStatus = info !== undefined && updated === undefined
+  return <div className="kimiSubscriptionCard">
+    <div className="kimiUsageHeader">
+      <h3>{t('versionTitle')}</h3>
+      {updated === undefined ? <Button type="button" variant="outline" disabled={loading || updating} onClick={() => load(true)}>{loading ? t('versionChecking') : t('versionCheck')}</Button> : null}
+    </div>
+    {loading && info === undefined ? <p className="kimiSubscriptionHint" role="status">{t('versionChecking')}</p> : null}
+    {error ? <p className="kimiSubscriptionError" role="alert">{t('versionFailed')}</p> : null}
+    {info !== undefined ? <div className="kimiVersionRows">
+      <div className="kimiVersionRow"><span>{t('versionCurrent')}</span><span className="kimiVersionValue">v{info.current}</span></div>
+      <div className="kimiVersionRow"><span>{t('versionLatest')}</span><span className="kimiVersionValue">v{info.latest}</span></div>
+    </div> : null}
+    {showStatus ? <p className="kimiSubscriptionHint" role="status">{info.updateAvailable ? t('versionAvailable').replace('{version}', info.latest) : t('versionUpToDate')}</p> : null}
+    {showStatus && info.updateAvailable && installKind === 'npm' ? <div className="kimiSubscriptionActions">
+      <Button type="button" variant="primary" disabled={updating} onClick={update}>{updating ? t('versionUpdating') : t('versionUpdate')}</Button>
+    </div> : null}
+    {showStatus && installKind === 'link' ? <p className="kimiSubscriptionHint">{t('versionLinked')}</p> : null}
+    {showStatus && info.updateAvailable && installKind === 'unknown' ? <p className="kimiSubscriptionHint">{t('versionManual')}</p> : null}
+    {updateFailed ? <p className="kimiSubscriptionError" role="alert">{t('versionUpdateFailed')}</p> : null}
+    {updated !== undefined ? <div className="kimiVersionUpdated" role="status">
+      <div className="kimiSubscriptionStatus">{t('versionUpdated').replace('{version}', updated.version)}</div>
+      <p className="kimiSubscriptionHint">{t('versionUpdatedHint')}</p>
+      {restartHint ? <p className="kimiSubscriptionHint">{t('versionRestartHint')}</p> : null}
+      <div className="kimiSubscriptionActions">
+        <Button type="button" variant="outline" onClick={() => setRestartHint(true)}>{t('versionRestart')}</Button>
+        <Button type="button" variant="primary" onClick={() => window.location.reload()}>{t('versionRefresh')}</Button>
+        <Button type="button" variant="outline" onClick={() => setUpdated(undefined)}>{t('versionLater')}</Button>
+      </div>
     </div> : null}
   </div>
 }
@@ -402,6 +511,7 @@ function KimiSection({ rpc, t }) {
       {flow?.phase === 'failed' || error !== undefined ? <p className="kimiSubscriptionError" role="alert">{error ?? t('failed')}</p> : null}
     </div>
     {signedIn ? <UsageCard call={call} t={t} /> : null}
+    <VersionCard call={call} t={t} />
     <p className="kimiSubscriptionPolicy">{t('interactiveOnly')}</p>
   </section>
 }

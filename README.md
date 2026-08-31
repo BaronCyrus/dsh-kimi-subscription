@@ -30,7 +30,7 @@ dsh plugin --profile web list dsh-kimi-subscription --depth 0
 也可以从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载对应版本的 `.tgz` 后安装：
 
 ```sh
-dsh plugin --profile web add ./dsh-kimi-subscription-0.3.3.tgz
+dsh plugin --profile web add ./dsh-kimi-subscription-1.0.0.tgz
 ```
 
 手动重启 DSH 后：
@@ -53,6 +53,7 @@ dsh plugin --profile web add ./dsh-kimi-subscription-0.3.3.tgz
 | **安全凭据** | OAuth 自动刷新，API Key、access token、refresh token 仅保存在 DSH Host 凭据服务中 |
 | **完整额度** | 读取 Kimi Code 官方 `/coding/v1/usages`，显示已用量、剩余比例、重置时间与加量包余额 |
 | **输入框额度** | 选择 Kimi 模型时紧凑显示 `5h 82%　7d 64%`，每 60 秒刷新 |
+| **版本检查** | 设置页显示当前与最新插件版本；npm 安装出现新版本时可一键更新，并提示重启 DSH 或刷新界面 |
 | **无付费回退** | 不会静默切换到 Kimi Open Platform 或其他付费提供方 |
 
 当前模型目录来自 `@earendil-works/pi-ai` `0.82.1`：
@@ -87,7 +88,9 @@ dsh plugin --profile web add /absolute/path/to/dsh-kimi-subscription
 
 ## 更新与卸载
 
-更新到 npm 最新版：
+设置 → Kimi 订阅页面会显示当前版本与 npm 最新版本；出现新版本时可直接点击「更新插件」，更新完成后按提示重启 DSH 服务（或先刷新界面）。
+
+也可以在终端更新到 npm 最新版：
 
 ```sh
 dsh plugin --profile web add dsh-kimi-subscription@latest
@@ -112,6 +115,7 @@ dsh plugin --profile web remove dsh-kimi-subscription
 - RPC 仅允许 loopback 浏览器调用；浏览器只接收裁剪后的登录状态和额度 JSON。
 - OAuth 登录 URL 仅允许 Kimi 官方 HTTPS origin。
 - 额度请求在 Host 发出，带超时、拒绝重定向且不会向浏览器返回凭据或原始响应。
+- 版本检查仅请求 npm registry 的公开元数据（带超时、拒绝重定向）；一键更新在 Host 调用 `dsh plugin` CLI，进程输出不会返回浏览器。
 - 本项目不会读取、记录或上传会话提示词与模型回复。
 - 安全问题请通过 [GitHub Private Vulnerability Reporting](https://github.com/BaronCyrus/dsh-kimi-subscription/security/advisories/new) 私下报告，不要在公开 Issue 中粘贴凭据。
 

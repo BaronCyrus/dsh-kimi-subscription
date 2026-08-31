@@ -1,0 +1,233 @@
+import assert from 'node:assert/strict'
+import { mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import test from 'node:test'
+
+import { createKimiRpcHandler } from '../src/login-coordinator.js'
+import {
+  compareSemver,
+  createKimiPluginManager,
+  NPM_REGISTRY_LATEST_URL,
+  PACKAGE_NAME,
+  parseSemver,
+} from '../src/plugin-version.js'
+
+const writeManifest = async (path, manifest) => {
+  await mkdir(join(path, '..'), { recursive: true })
+  await writeFile(path, JSON.stringify(manifest))
+}
+
+/** Fake DSH home whose `web` profile installed the package from the registry. */
+async function npmInstall(root, version = '0.3.3') {
+  const installedDir = join(root, 'profiles', 'web', 'node_modules', PACKAGE_NAME)
+  await writeManifest(join(root, 'profiles', 'web', 'package.json'), {
+    dependencies: { [PACKAGE_NAME]: version },
+  })
+  await writeManifest(join(installedDir, 'package.json'), { name: PACKAGE_NAME, version })
+  return pathToFileURL(join(installedDir, 'package.json'))
+}
+
+/** Fake DSH home whose `web` profile links a local checkout. */
+async function linkInstall(root, version = '0.3.3') {
+  const checkout = join(root, 'checkout')
+  await writeManifest(join(checkout, 'package.json'), { name: PACKAGE_NAME, version })
+  await writeManifest(join(root, 'profiles', 'web', 'package.json'), {
+    dependencies: { [PACKAGE_NAME]: 'link:../../checkout' },
+  })
+  const modules = join(root, 'profiles', 'web', 'node_modules')
+  await mkdir(modules, { recursive: true })
+  await symlink(checkout, join(modules, PACKAGE_NAME), 'dir')
+  return pathToFileURL(join(checkout, 'package.json'))
+}
+
+const registryOk = (version, observe) => async (url, init) => {
+  observe?.(url, init)
+  return { ok: true, status: 200, async json() { return { version } } }
+}
+
+test('semver parsing and comparison drive the update badge', () => {
+  assert.deepEqual(parseSemver(' 0.3.3 '), { major: 0, minor: 3, patch: 3, pre: undefined })
+  assert.equal(parseSemver('v0.3.3'), undefined)
+  assert.equal(parseSemver('0.3'), undefined)
+  assert.equal(parseSemver(undefined), undefined)
+  assert.equal(compareSemver('0.3.3', '0.4.0'), -1)
+  assert.equal(compareSemver('0.4.0', '0.3.3'), 1)
+  assert.equal(compareSemver('0.3.3', '0.3.3'), 0)
+  assert.equal(compareSemver('1.0.0', '1.0.0-rc.1'), 1)
+  assert.equal(compareSemver('1.0.0-rc.1', '1.0.0'), -1)
+  assert.equal(compareSemver('not-a-version', '0.3.3'), undefined)
+})
+
+test('version read combines own manifest, registry latest, and the owning npm profile', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'kimi-version-npm-'))
+  const ownPackageJsonUrl = await npmInstall(root)
+  let requests = 0
+  let observed
+  let clock = 1000
+  const manager = createKimiPluginManager({
+    env: { DSH_HOME: root },
+    ownPackageJsonUrl,
+    now: () => clock,
+    fetchImpl: (url, init) => {
+      requests += 1
+      observed = { url, redirect: init.redirect }
+      return registryOk('0.4.0')(url, init)
+    },
+  })
+  const first = await manager.read()
+  assert.deepEqual(first, {
+    current: '0.3.3',
+    latest: '0.4.0',
+    updateAvailable: true,
+    install: { kind: 'npm', profile: 'web' },
+    fetchedAt: 1000,
+  })
+  assert.deepEqual(observed, { url: NPM_REGISTRY_LATEST_URL, redirect: 'error' })
+  await manager.read()
+  assert.equal(requests, 1, 'fresh cached reads stay off the network')
+  await manager.read({ force: true })
+  assert.equal(requests, 2)
+})
+
+test('registry failures and malformed payloads surface one sanitized error', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'kimi-version-down-'))
+  const ownPackageJsonUrl = await npmInstall(root)
+  const failing = createKimiPluginManager({
+    env: { DSH_HOME: root },
+    ownPackageJsonUrl,
+    fetchImpl: async () => ({ ok: false, status: 500 }),
+  })
+  await assert.rejects(() => failing.read(), /^Error: Kimi plugin version check failed$/u)
+  const malformed = createKimiPluginManager({
+    env: { DSH_HOME: root },
+    ownPackageJsonUrl,
+    fetchImpl: async () => ({ ok: true, status: 200, async json() { return { version: 'not-a-version' } } }),
+  })
+  await assert.rejects(() => malformed.read(), /^Error: Kimi plugin version check failed$/u)
+})
+
+test('linked checkouts are reported but never updated in place', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'kimi-version-link-'))
+  const ownPackageJsonUrl = await linkInstall(root)
+  const manager = createKimiPluginManager({
+    env: { DSH_HOME: root },
+    ownPackageJsonUrl,
+    fetchImpl: registryOk('0.4.0'),
+    runCommand: async () => {
+      throw new Error('runCommand must not run for linked installs')
+    },
+  })
+  const info = await manager.read()
+  assert.equal(info.install.kind, 'link')
+  assert.equal(info.install.profile, 'web')
+  assert.equal(info.updateAvailable, true)
+  await assert.rejects(() => manager.update(), /^Error: Kimi plugin is installed from a local checkout$/u)
+})
+
+test('update shells out to the dsh CLI with the owning profile and exact version', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'kimi-version-update-'))
+  const ownPackageJsonUrl = await npmInstall(root)
+  const calls = []
+  let registryRequests = 0
+  const manager = createKimiPluginManager({
+    env: { DSH_HOME: root },
+    ownPackageJsonUrl,
+    execPath: '/node',
+    binPath: '/dsh/bin.js',
+    fetchImpl: () => {
+      registryRequests += 1
+      return registryOk('0.4.0')(NPM_REGISTRY_LATEST_URL, {})
+    },
+    runCommand: async argv => {
+      calls.push(argv)
+      return { code: 0, stdout: '', stderr: '' }
+    },
+  })
+  const updated = await manager.update()
+  assert.deepEqual(updated, { version: '0.4.0', profile: 'web' })
+  assert.deepEqual(calls, [[
+    '/node', '/dsh/bin.js', 'plugin', '--profile', 'web', 'add', `${PACKAGE_NAME}@0.4.0`,
+  ]])
+  await manager.read()
+  assert.equal(registryRequests, 2, 'a successful update invalidates the cached version')
+})
+
+test('update failures stay generic and unknown installs refuse to guess a profile', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'kimi-version-fail-'))
+  const ownPackageJsonUrl = await npmInstall(root)
+  const failing = createKimiPluginManager({
+    env: { DSH_HOME: root },
+    ownPackageJsonUrl,
+    fetchImpl: registryOk('0.4.0'),
+    runCommand: async () => ({ code: 1, stdout: '', stderr: 'pnpm exploded with secret-ish output' }),
+  })
+  await assert.rejects(
+    () => failing.update(),
+    error => error.message === 'Kimi plugin update failed' && !error.message.includes('secret-ish'),
+  )
+
+  const emptyHome = await mkdtemp(join(tmpdir(), 'kimi-version-none-'))
+  const stray = join(emptyHome, 'elsewhere', 'package.json')
+  await writeManifest(stray, { name: PACKAGE_NAME, version: '0.3.3' })
+  const unknown = createKimiPluginManager({
+    env: { DSH_HOME: emptyHome },
+    ownPackageJsonUrl: pathToFileURL(stray),
+    fetchImpl: registryOk('0.4.0'),
+  })
+  const info = await unknown.read()
+  assert.deepEqual(info.install, { kind: 'unknown' })
+  await assert.rejects(() => unknown.update(), /^Error: Kimi plugin update could not find the owning profile$/u)
+})
+
+test('loopback RPC exposes version and update endpoints with sanitized errors', async () => {
+  const projection = {
+    current: '0.3.3',
+    latest: '0.4.0',
+    updateAvailable: true,
+    install: { kind: 'npm', profile: 'web' },
+    fetchedAt: 1000,
+  }
+  const forced = []
+  const handler = createKimiRpcHandler({}, {
+    pluginManager: {
+      async read({ force } = {}) {
+        forced.push(force)
+        return projection
+      },
+      async update() {
+        return { version: '0.4.0', profile: 'web' }
+      },
+    },
+  })
+  const signal = new AbortController().signal
+  assert.deepEqual(await handler('plugin/version', {}, signal), { ok: true, value: projection })
+  await handler('plugin/version', { force: true }, signal)
+  assert.deepEqual(forced, [false, true])
+  assert.deepEqual(await handler('plugin/update', {}, signal), {
+    ok: true,
+    value: { version: '0.4.0', profile: 'web' },
+  })
+
+  const failing = createKimiRpcHandler({}, {
+    pluginManager: {
+      async read() { throw new Error('Kimi plugin version check failed') },
+      async update() { throw new Error('pnpm leaked internals') },
+    },
+  })
+  assert.deepEqual(await failing('plugin/version', {}, signal), {
+    ok: false,
+    error: { code: 'bad-request', message: 'Kimi plugin version check failed', details: { issues: [] } },
+  })
+  assert.deepEqual(await failing('plugin/update', {}, signal), {
+    ok: false,
+    error: { code: 'bad-request', message: 'Kimi request failed', details: { issues: [] } },
+  })
+
+  const missing = createKimiRpcHandler({})
+  assert.deepEqual(await missing('plugin/version', {}, signal), {
+    ok: false,
+    error: { code: 'bad-request', message: 'Kimi plugin version is unavailable', details: { issues: [] } },
+  })
+})
