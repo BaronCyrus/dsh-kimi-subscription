@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1
+
+- Refresh compatibility metadata for DeepSeek Harness 0.1.2: peer ranges now accept `0.1.1-rc.2 || 0.1.2-alpha.2 || 0.1.2-alpha.3` (`@deepseek-ai/dsh-client-runtime` remains `0.1.1-rc.2`, the newest published), development dependencies build and test against `0.1.2-alpha.3`, and `compatibility.json`/README list the 0.1.2 alpha line as supported. No runtime behavior change.
+
 ## 1.2.0
 
 - Automatic Codex coexistence for web search: no more manual profile patch. When the Codex subscription plugin manages DSH's search slot, choosing `auto`/`kimi` now writes (and `default` removes) a marked `- id: web` block in the owning profile's `cordis.patch.yml`, which DSH hot-applies without a restart — Codex models use the Codex subscription search, Kimi models use the Kimi subscription search, and other models use the DSH default. The block preserves every other `web` config key (e.g. `fetchProvider`) and every unrelated patch entry verbatim, and the settings card explains the behavior when the Codex plugin is detected. Without the Codex plugin, the previous runtime-slot behavior is unchanged and any stale patch block is cleaned up.
