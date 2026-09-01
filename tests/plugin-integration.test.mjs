@@ -83,9 +83,9 @@ test('plugin registers an isolated Kimi subscription group and loopback auth RPC
     'kimi-subscription-auto',
   ])
   const preference = await host.handled[0].handler('preferences/status', {}, new AbortController().signal)
-  assert.deepEqual(preference, { ok: true, value: { searchProvider: 'default', writable: true } })
+  assert.deepEqual(preference, { ok: true, value: { searchProvider: 'default', writable: true, codexDetected: false } })
   const updated = await host.handled[0].handler('preferences/update', { searchProvider: 'auto' }, new AbortController().signal)
-  assert.deepEqual(updated, { ok: true, value: { searchProvider: 'auto', writable: true } })
+  assert.deepEqual(updated, { ok: true, value: { searchProvider: 'auto', writable: true, codexDetected: false } })
   const invalid = await host.handled[0].handler('preferences/update', { searchProvider: 'bogus' }, new AbortController().signal)
   assert.equal(invalid.ok, false)
 })

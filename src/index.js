@@ -12,6 +12,7 @@ import {
   createKimiSearchProviderSwitcher,
   KIMI_AUTO_SEARCH_PROVIDER_ID,
   KIMI_SEARCH_PROVIDER_ID,
+  resolveDshSearchProviderId,
 } from './kimi-search.js'
 import { createKimiRpcHandler, KimiLoginCoordinator } from './login-coordinator.js'
 import { createKimiSubscriptionProvider, createModels } from './pi-ai-runtime.js'
@@ -113,12 +114,20 @@ export function apply(ctx) {
     kimi: kimiSearch,
     resolveModelProvider: () => currentAgent()?.session.requestContext?.()?.provider,
     resolveCodexProvider: () => ctx.web.searchProviders?.get(CODEX_AUTO_SEARCH_PROVIDER_ID),
-    resolveDshProvider: () => ctx.web.searchProviders?.get(dshSearchProviderId()),
+    resolveDshProvider: () => ctx.web.searchProviders?.get(resolveDshSearchProviderId(dshSearchProviderId())),
   }))
-  const searchSwitcher = createKimiSearchProviderSwitcher(ctx.loader)
+  // The Codex subscription plugin's switcher re-writes its own selection
+  // whenever the web runtime restarts; never contest the slot while its
+  // providers are registered.
+  const codexManagesSearch = () => ctx.web.searchProviders?.has(CODEX_AUTO_SEARCH_PROVIDER_ID) === true
+  const searchSwitcher = createKimiSearchProviderSwitcher(ctx.loader, {
+    isForeignManaged: codexManagesSearch,
+    logger: ctx.logger,
+  })
   const searchPreference = Object.freeze({
     get: () => settings.get()[SEARCH_PROVIDER_FIELD],
     writable: () => ctx.settings.writable !== false,
+    codexDetected: codexManagesSearch,
     set: async value => {
       if (!SEARCH_PROVIDER_CHOICES.includes(value)) throw new Error('Invalid search provider preference')
       await settings.update({ [SEARCH_PROVIDER_FIELD]: value })

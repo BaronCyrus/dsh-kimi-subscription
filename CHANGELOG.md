@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1
+
+- Fix a search-routing race with dsh-codex-subscription. With both plugins set to route web search, the two switchers could contest DSH's single search-provider slot across web-runtime restarts; in practice the Codex plugin's selection won, silently routing Kimi models to the DSH default search instead of the Kimi subscription search. This plugin's switcher now yields whenever the Codex plugin's search providers are registered (the settings page explains this when detected), and the README documents the supported coexistence setup: keep the Codex plugin on its auto route and point the profile `cordis.patch.yml` web `searchProvider` at `kimi-subscription-auto`.
+- The auto router now falls through to the built-in `deepseek-official` provider when the DSH base configuration already points at one of this plugin's own providers, avoiding self-delegation for non-subscription models in that patched setup.
+- `preferences/status` additionally reports `codexDetected` so the settings card can explain when the selection is inactive.
+
 ## 1.1.0
 
 - Add subscription-backed web search. The plugin registers two DSH search providers — `kimi-subscription` (Kimi Code's official `/coding/v1/search` endpoint, authenticated with the host-side subscription credential) and `kimi-subscription-auto` (routes by initiating model: Kimi models use Kimi search, Codex models delegate to the Codex subscription auto provider when installed, everything else uses the DSH default). A new Web search card in Settings selects `default` (passive, never touches DSH's single search-provider slot), `auto`, or `kimi`; switching back to `default` restores the provider this plugin took over from. Credentials and search traffic remain Host-side; the browser only sees the loopback-authorized preference projection.

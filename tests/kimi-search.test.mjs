@@ -9,6 +9,7 @@ import {
   KIMI_SEARCH_PROVIDER_ID,
   KIMI_SEARCH_URL,
   parseKimiSearchResponse,
+  resolveDshSearchProviderId,
 } from '../src/kimi-search.js'
 
 const payload = {
@@ -197,4 +198,25 @@ test('switcher stays passive when the slot is not ours and none was captured', a
   await switcher.select('default')
   assert.equal(entry.fiber.config.searchProvider, 'codex-subscription-auto')
   assert.equal(entry.fiber.updates.length, 0)
+})
+
+test('switcher never contests the slot while another subscription plugin manages it', async () => {
+  const { entry, loader } = fakeLoader('codex-subscription-auto')
+  const warnings = []
+  const switcher = createKimiSearchProviderSwitcher(loader, {
+    isForeignManaged: () => true,
+    logger: { warn: (...args) => warnings.push(args) },
+  })
+  await switcher.select('auto')
+  await switcher.select('kimi')
+  await switcher.select('default')
+  assert.equal(entry.fiber.config.searchProvider, 'codex-subscription-auto')
+  assert.equal(entry.fiber.updates.length, 0)
+  assert.equal(warnings.length, 1)
+})
+
+test('dsh fallback resolution avoids self-delegation', () => {
+  assert.equal(resolveDshSearchProviderId('deepseek-official'), 'deepseek-official')
+  assert.equal(resolveDshSearchProviderId(KIMI_SEARCH_PROVIDER_ID), 'deepseek-official')
+  assert.equal(resolveDshSearchProviderId(KIMI_AUTO_SEARCH_PROVIDER_ID), 'deepseek-official')
 })

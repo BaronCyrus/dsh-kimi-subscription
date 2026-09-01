@@ -184,6 +184,7 @@ export function createKimiRpcHandler(coordinator, { usageReader, pluginManager, 
   const preferenceStatus = () => ({
     searchProvider: searchPreference?.get() ?? 'default',
     writable: searchPreference?.writable() === true,
+    codexDetected: searchPreference?.codexDetected?.() === true,
   })
   return async (endpoint, payload, signal) => {
     try {

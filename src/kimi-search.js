@@ -155,17 +155,36 @@ export function createKimiAutoSearchProvider(options) {
 }
 
 const WEB_ENTRY_ID = 'web'
+export const DSH_SEARCH_PROVIDER_FALLBACK = 'deepseek-official'
+
+/**
+ * Resolve the fallback provider id for non-Kimi/non-Codex models. When a
+ * profile patch points the DSH base configuration at one of this plugin's own
+ * providers, fall through to the built-in DeepSeek search instead of
+ * delegating to ourselves.
+ */
+export function resolveDshSearchProviderId(baseId) {
+  return baseId === KIMI_SEARCH_PROVIDER_ID || baseId === KIMI_AUTO_SEARCH_PROVIDER_ID
+    ? DSH_SEARCH_PROVIDER_FALLBACK
+    : baseId
+}
 
 /**
  * Mirror the Codex subscription's search-provider switcher: write the chosen
- * provider id into the DSH web runtime's single search slot. The `default`
- * selection is deliberately passive so this plugin never races another
- * subscription plugin for the slot unless the user opted in; switching back
- * to `default` restores whichever provider this switcher took over from.
+ * provider id into the DSH web runtime's single search slot. Two safeguards
+ * keep this plugin from fighting another subscription plugin for the slot:
+ *
+ * - `isForeignManaged` (e.g. the Codex subscription plugin's providers are
+ *   registered) makes every selection a no-op. That plugin re-writes its own
+ *   choice whenever the web runtime restarts, so contesting the slot would
+ *   restart-cycle the web runtime indefinitely.
+ * - The `default` selection is deliberately passive and only restores a
+ *   provider this switcher previously took over from.
  */
-export function createKimiSearchProviderSwitcher(loader) {
+export function createKimiSearchProviderSwitcher(loader, { isForeignManaged, logger } = {}) {
   const webEntry = () => [...loader.entries()].find(entry => entry.options?.id === WEB_ENTRY_ID)
   let captured
+  let warned = false
   const update = async provider => {
     const entry = webEntry()
     const fiber = entry?.fiber
@@ -178,6 +197,14 @@ export function createKimiSearchProviderSwitcher(loader) {
   }
   return Object.freeze({
     async select(selection) {
+      if (isForeignManaged?.() === true) {
+        // Another subscription plugin owns the slot; never contest it.
+        if (!warned && selection !== 'default') {
+          warned = true
+          logger?.warn?.('another subscription plugin manages the DSH web search provider; the Kimi search provider selection is inactive')
+        }
+        return
+      }
       const entry = webEntry()
       if (entry === undefined) throw new Error('DSH web runtime is unavailable')
       const currentConfig = entry.fiber?.config ?? entry.options?.config ?? {}
