@@ -6,6 +6,7 @@ import { apply, DISPLAY_NAME, PROVIDER } from '../src/index.js'
 function fakeContext() {
   const registered = []
   const handled = []
+  const searchProviders = []
   let credential
   const attachments = {}
   const ctx = {
@@ -28,11 +29,30 @@ function fakeContext() {
         },
       },
     },
+    web: {
+      registerSearchProvider(provider) {
+        searchProviders.push(provider)
+        return () => {}
+      },
+      searchProviders: new Map(),
+    },
+    settings: {
+      writable: true,
+      register() {
+        let value = { searchProvider: 'default' }
+        return {
+          get: () => value,
+          update: async patch => { value = { ...value, ...patch } },
+          watch: () => () => {},
+        }
+      },
+    },
+    loader: { entries: () => [] },
     attachments,
     get(name) { return name === 'attachments' ? attachments : undefined },
     effect(register) { return register() },
   }
-  return { ctx, registered, handled }
+  return { ctx, registered, handled, searchProviders }
 }
 
 test('plugin registers an isolated Kimi subscription group and loopback auth RPC', async () => {
@@ -57,4 +77,15 @@ test('plugin registers an isolated Kimi subscription group and loopback auth RPC
     ok: true,
     value: { authenticated: false, provider: PROVIDER },
   })
+
+  assert.deepEqual(host.searchProviders.map(provider => provider.id), [
+    'kimi-subscription',
+    'kimi-subscription-auto',
+  ])
+  const preference = await host.handled[0].handler('preferences/status', {}, new AbortController().signal)
+  assert.deepEqual(preference, { ok: true, value: { searchProvider: 'default', writable: true } })
+  const updated = await host.handled[0].handler('preferences/update', { searchProvider: 'auto' }, new AbortController().signal)
+  assert.deepEqual(updated, { ok: true, value: { searchProvider: 'auto', writable: true } })
+  const invalid = await host.handled[0].handler('preferences/update', { searchProvider: 'bogus' }, new AbortController().signal)
+  assert.equal(invalid.ok, false)
 })

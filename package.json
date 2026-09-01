@@ -1,6 +1,6 @@
 {
   "name": "dsh-kimi-subscription",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "packageManager": "pnpm@10.32.1",
   "description": "Use a Kimi Code membership in DeepSeek Harness through a dedicated Kimi subscription model route",
   "type": "module",
@@ -82,6 +82,9 @@
     "@deepseek-ai/dsh-credentials": "0.1.1-rc.2",
     "@deepseek-ai/dsh-llm": "0.1.1-rc.2",
     "@deepseek-ai/dsh-llm-pi-ai": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-settings": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-web": "0.1.1-rc.2",
+    "@deepseek-ai/schemastery": "3.18.1",
     "@earendil-works/pi-ai": "0.82.1",
     "react": "^18.2.0"
   },
@@ -98,6 +101,9 @@
     "@deepseek-ai/dsh-credentials": "0.1.1-rc.2",
     "@deepseek-ai/dsh-llm": "0.1.1-rc.2",
     "@deepseek-ai/dsh-llm-pi-ai": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-settings": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-web": "0.1.1-rc.2",
+    "@deepseek-ai/schemastery": "3.18.1",
     "@earendil-works/pi-ai": "0.82.1",
     "react": "18.3.1",
     "tsdown": "0.22.2"

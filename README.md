@@ -30,7 +30,7 @@ dsh plugin --profile web list dsh-kimi-subscription --depth 0
 也可以从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载对应版本的 `.tgz` 后安装：
 
 ```sh
-dsh plugin --profile web add ./dsh-kimi-subscription-1.0.3.tgz
+dsh plugin --profile web add ./dsh-kimi-subscription-1.1.0.tgz
 ```
 
 手动重启 DSH 后：
@@ -54,7 +54,12 @@ dsh plugin --profile web add ./dsh-kimi-subscription-1.0.3.tgz
 | **完整额度** | 读取 Kimi Code 官方 `/coding/v1/usages`，显示已用量、剩余比例、重置时间与加量包余额 |
 | **输入框额度** | 选择 Kimi 模型时紧凑显示 `5h 82%　7d 64%`，每 60 秒刷新 |
 | **版本检查** | 设置页显示当前与最新插件版本；npm 安装出现新版本时可一键更新，并提示重启 DSH 或刷新界面 |
+| **订阅网页搜索** | 注册 `kimi-subscription` / `kimi-subscription-auto` 两个 DSH 搜索提供方，走 Kimi Code 官方 `/coding/v1/search`；设置页可选择「不接管（默认）/ 按模型自动路由 / 始终使用 Kimi 搜索」 |
 | **无付费回退** | 不会静默切换到 Kimi Open Platform 或其他付费提供方 |
+
+### 网页搜索路由说明
+
+DSH 全局只有一个生效的搜索提供方槽位。本插件默认**不接管**该槽位，避免与其他订阅插件（如 dsh-codex-subscription）在启动时互相竞争。在设置页选择「自动」后：Kimi 模型走 Kimi 订阅搜索，Codex 模型委托给 Codex 订阅搜索（若已安装），其他模型走 DSH 默认搜索（`deepseek-official`）；切回「不接管」会恢复接管前的搜索来源。如需通过 profile 补丁手动指定，请把 `web.config.searchProvider` 指向 `kimi-subscription`（不要指向 `kimi-subscription-auto`，以免与其他自动路由插件形成循环委托）。
 
 当前模型目录来自 `@earendil-works/pi-ai` `0.82.1`：
 

@@ -129,7 +129,8 @@ export function parseKimiUsage(payload) {
   }
 }
 
-function authorizationHeader(resolution) {
+/** Derive a host-side Bearer header from an auth-models resolution. Never logged. */
+export function authorizationHeader(resolution) {
   const auth = resolution?.auth
   if (!record(auth)) return undefined
   if (typeof auth.apiKey === 'string' && auth.apiKey.length > 0) return `Bearer ${auth.apiKey}`

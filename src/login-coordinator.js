@@ -180,7 +180,11 @@ export class KimiLoginCoordinator {
 }
 
 /** Map the loopback-only DSH Connection channel onto account, usage, and plugin services. */
-export function createKimiRpcHandler(coordinator, { usageReader, pluginManager } = {}) {
+export function createKimiRpcHandler(coordinator, { usageReader, pluginManager, searchPreference } = {}) {
+  const preferenceStatus = () => ({
+    searchProvider: searchPreference?.get() ?? 'default',
+    writable: searchPreference?.writable() === true,
+  })
   return async (endpoint, payload, signal) => {
     try {
       signal.throwIfAborted()
@@ -201,6 +205,14 @@ export function createKimiRpcHandler(coordinator, { usageReader, pluginManager }
         if (pluginManager === undefined) throw new Error('Kimi plugin update is unavailable')
         return ok(await pluginManager.update({ signal }))
       }
+      if (endpoint === 'preferences/status') return ok(preferenceStatus())
+      if (endpoint === 'preferences/update') {
+        if (searchPreference === undefined || searchPreference.writable() !== true) {
+          throw new Error('Kimi search preference is unavailable')
+        }
+        await searchPreference.set(input.searchProvider)
+        return ok(preferenceStatus())
+      }
       if (endpoint === 'api-key/set') {
         const status = await coordinator.setApiKey(input.apiKey, { signal })
         usageReader?.invalidate()
@@ -215,7 +227,7 @@ export function createKimiRpcHandler(coordinator, { usageReader, pluginManager }
     } catch (error) {
       if (signal.aborted) throw error
       const message = error instanceof Error
-        && /^(unknown Kimi|Kimi login|Kimi usage|Kimi plugin|Kimi Code subscription|Could not read Kimi Code subscription usage)/u.test(error.message)
+        && /^(unknown Kimi|Kimi login|Kimi usage|Kimi plugin|Kimi search preference|Kimi Code subscription|Invalid search provider|Could not read Kimi Code subscription usage)/u.test(error.message)
         ? error.message
         : 'Kimi request failed'
       return badRequest(message)

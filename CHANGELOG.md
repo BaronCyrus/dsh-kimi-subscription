@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0
+
+- Add subscription-backed web search. The plugin registers two DSH search providers — `kimi-subscription` (Kimi Code's official `/coding/v1/search` endpoint, authenticated with the host-side subscription credential) and `kimi-subscription-auto` (routes by initiating model: Kimi models use Kimi search, Codex models delegate to the Codex subscription auto provider when installed, everything else uses the DSH default). A new Web search card in Settings selects `default` (passive, never touches DSH's single search-provider slot), `auto`, or `kimi`; switching back to `default` restores the provider this plugin took over from. Credentials and search traffic remain Host-side; the browser only sees the loopback-authorized preference projection.
+
 ## 1.0.3
 
 - Fix subscription-usage and plugin-version reads permanently failing (`无法读取订阅余量` / `无法检查最新版本`) on some host startups. Both readers captured the ambient `globalThis.fetch` when the plugin loaded; a sibling plugin that temporarily swaps `globalThis.fetch` with a scoped proxy wrapper during its own startup network work could leave these readers holding a dismantled wrapper whose fallback is nulled on teardown, failing every request for the process lifetime. The ambient fetch is now resolved per call, which stays correct whether or not such a wrapper is installed.
