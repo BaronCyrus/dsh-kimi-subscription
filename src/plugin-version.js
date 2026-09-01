@@ -63,7 +63,7 @@ const readManifest = async path => {
  * (pnpm symlinks resolve identically on both sides). When no realpath matches,
  * fall back to the only profile that declares the dependency at all.
  */
-async function findInstall({ dshHome, ownPackageJsonUrl }) {
+export async function findInstall({ dshHome, ownPackageJsonUrl }) {
   let ownReal
   try {
     ownReal = await realpath(fileURLToPath(ownPackageJsonUrl))

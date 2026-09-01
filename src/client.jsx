@@ -85,7 +85,7 @@ const zh = {
   searchAutoHint: 'Kimi 模型使用 Kimi 订阅搜索；Codex 模型交给 Codex 订阅搜索（若已安装该插件）；其他模型使用 DSH 默认搜索。',
   searchKimi: '始终使用 Kimi 搜索',
   searchKimiHint: '所有模型的网页搜索都走 Kimi 订阅搜索；订阅未连接时搜索会失败。',
-  searchCodexDetected: '检测到 Codex 订阅插件：DSH 搜索槽位由其设置管理（争夺会导致 web 运行时反复重启），本页的「自动 / 始终」选项暂不生效。若需 Kimi 模型走 Kimi 搜索，请在 Codex 插件中选择「自动」，并按 README 将 profile 补丁的 web 搜索提供方设为 kimi-subscription-auto。',
+  searchCodexDetected: '检测到 Codex 订阅插件：DSH 搜索槽位由其管理。选择「自动 / 始终」会自动把路由写入本 profile 的 cordis.patch.yml（热加载生效，无需重启）：Kimi 模型走 Kimi 搜索，Codex 模型走 Codex 搜索，其余走 DSH 默认搜索；切回「不接管」会自动移除该补丁。',
 }
 
 const en = {
@@ -161,7 +161,7 @@ const en = {
   searchAutoHint: 'Kimi models use Kimi subscription search; Codex models delegate to Codex subscription search when that plugin is installed; other models use the DSH default search.',
   searchKimi: 'Always use Kimi search',
   searchKimiHint: 'Every model searches through the Kimi subscription; search fails while the subscription is disconnected.',
-  searchCodexDetected: 'Codex subscription plugin detected: it manages the DSH search slot (contesting it would restart-cycle the web runtime), so the Auto/Always choices here are inactive. To route Kimi models to Kimi search, keep Auto in the Codex plugin and set the profile patch web search provider to kimi-subscription-auto as described in the README.',
+  searchCodexDetected: 'Codex subscription plugin detected: it manages the DSH search slot. Choosing Auto/Always automatically writes the route into this profile\'s cordis.patch.yml (hot-applied, no restart needed): Kimi models use Kimi search, Codex models use Codex search, others use the DSH default. Switching back to default removes the patch automatically.',
 }
 
 const STYLE = `

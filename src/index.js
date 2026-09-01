@@ -1,3 +1,6 @@
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { LlmError } from '@deepseek-ai/dsh-llm'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
@@ -16,7 +19,8 @@ import {
 } from './kimi-search.js'
 import { createKimiRpcHandler, KimiLoginCoordinator } from './login-coordinator.js'
 import { createKimiSubscriptionProvider, createModels } from './pi-ai-runtime.js'
-import { createKimiPluginManager } from './plugin-version.js'
+import { createKimiPluginManager, findInstall } from './plugin-version.js'
+import { createKimiSearchComposition } from './search-composition.js'
 import { createKimiUsageReader, KIMI_USAGE_URL, parseKimiUsage } from './usage.js'
 
 export const name = 'kimi-subscription'
@@ -118,11 +122,23 @@ export function apply(ctx) {
   }))
   // The Codex subscription plugin's switcher re-writes its own selection
   // whenever the web runtime restarts; never contest the slot while its
-  // providers are registered.
+  // providers are registered. Instead, route through the web row's BASE
+  // config: write this plugin's marked patch block into the owning profile's
+  // cordis.patch.yml (the boot layer hot-applies it), so the Codex auto
+  // router falls back to kimi-subscription-auto for non-Codex models.
   const codexManagesSearch = () => ctx.web.searchProviders?.has(CODEX_AUTO_SEARCH_PROVIDER_ID) === true
   const searchSwitcher = createKimiSearchProviderSwitcher(ctx.loader, {
     isForeignManaged: codexManagesSearch,
     logger: ctx.logger,
+  })
+  const dshHome = typeof process.env.DSH_HOME === 'string' && process.env.DSH_HOME !== ''
+    ? process.env.DSH_HOME
+    : join(homedir(), '.dsh')
+  const ownPackageJsonUrl = new URL('../package.json', import.meta.url)
+  const searchComposition = createKimiSearchComposition({
+    dshHome,
+    findProfile: async () => (await findInstall({ dshHome, ownPackageJsonUrl })).profile,
+    readBaseConfig: () => webEntry()?.options?.config ?? {},
   })
   const searchPreference = Object.freeze({
     get: () => settings.get()[SEARCH_PROVIDER_FIELD],
@@ -135,11 +151,21 @@ export function apply(ctx) {
   })
   ctx.effect(() => {
     const select = value => {
-      // The switcher treats the default selection as passive: it only restores
-      // a provider it previously took over from, and otherwise leaves DSH's
-      // single search slot to the base configuration or another plugin.
-      searchSwitcher.select(value[SEARCH_PROVIDER_FIELD]).catch(error => {
-        ctx.logger?.warn?.('could not select the configured web search provider: %s', error.message)
+      const selection = value[SEARCH_PROVIDER_FIELD]
+      let task
+      if (codexManagesSearch()) {
+        // The Codex plugin owns the runtime slot; steer its fallback through
+        // the profile patch instead of contesting the slot.
+        task = selection === SEARCH_PROVIDER_DEFAULT
+          ? searchComposition.remove()
+          : searchComposition.apply(selection === SEARCH_PROVIDER_KIMI ? KIMI_SEARCH_PROVIDER_ID : KIMI_AUTO_SEARCH_PROVIDER_ID)
+      } else {
+        // No foreign switcher: take or restore the runtime slot directly, and
+        // drop any stale patch block left from a previous Codex coexistence.
+        task = searchComposition.remove().finally(() => searchSwitcher.select(selection))
+      }
+      Promise.resolve(task).catch(error => {
+        ctx.logger?.warn?.('could not apply the configured web search provider: %s', error.message)
       })
     }
     select(settings.get())

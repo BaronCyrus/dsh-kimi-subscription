@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import test from 'node:test'
 
 import { apply, DISPLAY_NAME, PROVIDER } from '../src/index.js'
+
+// Keep the search-composition editor away from the developer's real profile:
+// profile detection scans $DSH_HOME/profiles, so point it at an empty sandbox.
+process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'dsh-kimi-test-'))
 
 function fakeContext() {
   const registered = []

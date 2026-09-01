@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.0
+
+- Automatic Codex coexistence for web search: no more manual profile patch. When the Codex subscription plugin manages DSH's search slot, choosing `auto`/`kimi` now writes (and `default` removes) a marked `- id: web` block in the owning profile's `cordis.patch.yml`, which DSH hot-applies without a restart — Codex models use the Codex subscription search, Kimi models use the Kimi subscription search, and other models use the DSH default. The block preserves every other `web` config key (e.g. `fetchProvider`) and every unrelated patch entry verbatim, and the settings card explains the behavior when the Codex plugin is detected. Without the Codex plugin, the previous runtime-slot behavior is unchanged and any stale patch block is cleaned up.
+
 ## 1.1.1
 
 - Fix a search-routing race with dsh-codex-subscription. With both plugins set to route web search, the two switchers could contest DSH's single search-provider slot across web-runtime restarts; in practice the Codex plugin's selection won, silently routing Kimi models to the DSH default search instead of the Kimi subscription search. This plugin's switcher now yields whenever the Codex plugin's search providers are registered (the settings page explains this when detected), and the README documents the supported coexistence setup: keep the Codex plugin on its auto route and point the profile `cordis.patch.yml` web `searchProvider` at `kimi-subscription-auto`.

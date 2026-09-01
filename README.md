@@ -30,7 +30,7 @@ dsh plugin --profile web list dsh-kimi-subscription --depth 0
 也可以从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载对应版本的 `.tgz` 后安装：
 
 ```sh
-dsh plugin --profile web add ./dsh-kimi-subscription-1.1.1.tgz
+dsh plugin --profile web add ./dsh-kimi-subscription-1.2.0.tgz
 ```
 
 手动重启 DSH 后：
@@ -61,16 +61,7 @@ dsh plugin --profile web add ./dsh-kimi-subscription-1.1.1.tgz
 
 DSH 全局只有一个生效的搜索提供方槽位。本插件默认**不接管**该槽位。
 
-**同时安装了 dsh-codex-subscription 时**：Codex 插件的切换器会在 web 运行时每次重启后重写自己的槽位选择，与之争夺会导致 web 运行时反复重启，因此本插件检测到 Codex 插件后会自动让位（设置页的「自动 / 始终」选项不生效，页面会有提示）。此时要让 Kimi 模型走 Kimi 搜索，推荐做法：Codex 插件侧保持「自动」，并在 profile 的 `cordis.patch.yml` 中加入：
-
-```yaml
-- id: web
-  config:
-    searchProvider: kimi-subscription-auto
-    fetchProvider: http
-```
-
-重启 DSH 后：Codex 模型 → Codex 订阅搜索；Kimi 模型 → Kimi 订阅搜索；其他模型 → DSH 默认搜索（`deepseek-official`）。注意补丁对 `config` 是整体替换，`fetchProvider` 必须一并写上；`searchProvider` 也可以写成 `kimi-subscription`（所有模型都走 Kimi 搜索）。
+**同时安装了 dsh-codex-subscription 时**：Codex 插件的切换器会在 web 运行时每次重启后重写自己的槽位选择，与之争夺会导致 web 运行时反复重启，因此本插件改为**自动维护 profile 补丁**：在设置页选择「自动 / 始终」后，插件会把带标记的 `- id: web` 补丁块写入本 profile 的 `cordis.patch.yml`（DSH 会热加载，无需重启），效果为：Codex 模型 → Codex 订阅搜索；Kimi 模型 → Kimi 订阅搜索；其他模型 → DSH 默认搜索（`deepseek-official`）。切回「不接管」会自动移除该补丁块。补丁块只设置 `web` 行的 `searchProvider`，其他键（如 `fetchProvider`）与其他补丁条目原样保留。卸载本插件后，删除 `cordis.patch.yml` 中 `# >>> dsh-kimi-subscription` 标记的块即可彻底还原。
 
 **仅安装本插件时**：在设置页选择「自动」后，Kimi 模型走 Kimi 订阅搜索，其他模型走 DSH 默认搜索；选择「始终使用 Kimi 搜索」则所有模型都走 Kimi 订阅搜索；切回「不接管」会恢复接管前的搜索来源。
 
