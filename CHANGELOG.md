@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.3
+
+- Widen the `@deepseek-ai/cordis` peer range to `4.0.1 || 4.0.2`. DeepSeek Harness 0.1.2 hosts bundle cordis 4.0.2 and their packages require `^4.0.2`, so the previous exact `4.0.1` pin made pnpm print an unmet-peer warning on every `dsh plugin add` (harmless under DSH's `autoInstallPeers: false` profile setup, but noisy). No runtime behavior change.
+
 ## 1.2.2
 
 - Refresh compatibility metadata for DeepSeek Harness `0.1.2-alpha.5`: peer ranges now accept `0.1.1-rc.2 || 0.1.2-alpha.2 || 0.1.2-alpha.3 || 0.1.2-alpha.5` (`@deepseek-ai/dsh-client-runtime` remains `0.1.1-rc.2`, the newest published), development dependencies build and test against `0.1.2-alpha.5`, and `compatibility.json`/README list `0.1.2-alpha.5` as supported. No runtime behavior change.
