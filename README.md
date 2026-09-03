@@ -20,7 +20,7 @@
 
 ## 快速开始
 
-当前版本兼容 DeepSeek Harness `0.1.1-rc.2` 与 `0.1.2-alpha.2` / `0.1.2-alpha.3`（`compatibility.json` 记录实测版本）。通过 npm 安装到目标 profile：
+当前版本兼容 DeepSeek Harness `0.1.1-rc.2` 与 `0.1.2-alpha.2` / `0.1.2-alpha.3` / `0.1.2-alpha.5`（`compatibility.json` 记录实测版本）。通过 npm 安装到目标 profile：
 
 ```sh
 dsh plugin --profile web add dsh-kimi-subscription
@@ -30,7 +30,7 @@ dsh plugin --profile web list dsh-kimi-subscription --depth 0
 也可以从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载对应版本的 `.tgz` 后安装：
 
 ```sh
-dsh plugin --profile web add ./dsh-kimi-subscription-1.2.1.tgz
+dsh plugin --profile web add ./dsh-kimi-subscription-1.2.2.tgz
 ```
 
 手动重启 DSH 后：
