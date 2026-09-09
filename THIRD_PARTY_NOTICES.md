@@ -10,3 +10,5 @@ This project uses public interfaces and runtime behavior from:
 The host credential adapter, loopback login coordinator, DSH client module build pattern, and composer quota Slot were designed with reference to `dsh-codex-subscription`. The managed usage projection follows Kimi Code's public `/usages` payload contract. The Kimi route identity, credential integration, UI, and tests are specific to this project.
 
 Kimi and Moonshot AI names and service endpoints are used only to identify the interoperated service. This project is not affiliated with or endorsed by Moonshot AI.
+
+The Connection dependency compatibility patch follows DeepSeek Harness’s public Loader injection and bundle-patch interfaces. The missing `webServer` injection was also reported in https://github.com/deepseek-ai/deepseek-harness/discussions/5926. No upstream transport or authentication implementation is copied into this plugin.

@@ -74,4 +74,4 @@ export function createKimiSubscriptionProvider({ onAuthRejected } = {}) {
   })
 }
 
-export const PI_AI_RUNTIME_VERSION = '0.82.1'
+export const PI_AI_RUNTIME_VERSION = '0.85.1'

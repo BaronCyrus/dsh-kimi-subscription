@@ -1,3 +1,9 @@
+## 1.2.4
+
+- Fix startup on DeepSeek Harness `0.1.5-alpha.1`: the plugin bundle adds `webServer` to the official `connection` loader entry's injected services. This compensates for Connection RPC registration accessing an undeclared owner dependency, without editing installed DSH code or replacing its transport/authentication logic. The patch is guarded by the official package name and is idempotent on previously supported hosts.
+- Extend peer compatibility to DSH `0.1.5-alpha.1` and pi-ai `0.85.1`; update the development baseline while retaining prior peer ranges.
+- Add real Cordis Loader/Connection regression coverage: reproduce the unpatched failure, activate the full plugin against current and legacy Connection, verify unauthorized requests are rejected, and verify route cleanup on unload. Validation uses isolated fake host resources and no live credentials or provider calls.
+
 # Changelog
 
 ## 1.2.3

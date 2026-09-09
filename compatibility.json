@@ -1,10 +1,14 @@
 {
-  "latestTested": "0.1.2-alpha.5",
+  "latestTested": "0.1.5-alpha.1",
   "supported": [
     "0.1.1-rc.2",
     "0.1.2-alpha.2",
     "0.1.2-alpha.3",
-    "0.1.2-alpha.5"
+    "0.1.2-alpha.5",
+    "0.1.5-alpha.1"
   ],
-  "piAi": "0.82.1"
+  "piAi": "0.85.1",
+  "validation": {
+    "0.1.5-alpha.1": "Automated plugin tests, real Cordis Loader/Connection activation and RPC authentication/disposal checks; no live account or GUI verification."
+  }
 }
