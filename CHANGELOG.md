@@ -1,10 +1,17 @@
+# Changelog
+
+## 1.2.5
+
+- Correct the 1.2.4 Connection compatibility patch to retain the official profile's `webRuntime` injection alongside `webServer`. Entry patches replace the row's inject array; dropping `webRuntime` prevents `trustedHosts: !!js ctx.webRuntime.trustedHosts` from being evaluated during startup.
+- Exercise the real profile's entry injection and dynamic trusted-host expression in regression tests, including an explicit reproduction of the 1.2.4 failure.
+
+- Validation: 58 automated tests and real profile configuration checks; the user confirmed successful DSH startup after applying the corrected dependency list.
+
 ## 1.2.4
 
 - Fix startup on DeepSeek Harness `0.1.5-alpha.1`: the plugin bundle adds `webServer` to the official `connection` loader entry's injected services. This compensates for Connection RPC registration accessing an undeclared owner dependency, without editing installed DSH code or replacing its transport/authentication logic. The patch is guarded by the official package name and is idempotent on previously supported hosts.
 - Extend peer compatibility to DSH `0.1.5-alpha.1` and pi-ai `0.85.1`; update the development baseline while retaining prior peer ranges.
 - Add real Cordis Loader/Connection regression coverage: reproduce the unpatched failure, activate the full plugin against current and legacy Connection, verify unauthorized requests are rejected, and verify route cleanup on unload. Validation uses isolated fake host resources and no live credentials or provider calls.
-
-# Changelog
 
 ## 1.2.3
 

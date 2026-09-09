@@ -6,9 +6,10 @@
 
 # DSH 0.1.5-alpha.1 registers RPC routes through the Connection owner's
 # webServer but no longer declares that dependency. Loader entry injections
-# augment the module's own inject list (including credentials). The name guard
-# leaves replacement Connection implementations untouched; older supported
-# hosts already inject webServer, so this is idempotent there.
+# augment the module's own inject list (including credentials), but REPLACE
+# the row's inject list: preserve webRuntime for trustedHosts interpolation.
+# The name guard leaves replacement Connection implementations untouched.
+# Older supported web profiles also provide both services.
 - id: connection
   name: '@deepseek-ai/dsh-client-connection'
-  inject: [webServer]
+  inject: [webRuntime, webServer]

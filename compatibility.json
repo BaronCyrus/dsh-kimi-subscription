@@ -9,6 +9,6 @@
   ],
   "piAi": "0.85.1",
   "validation": {
-    "0.1.5-alpha.1": "Automated plugin tests, real Cordis Loader/Connection activation and RPC authentication/disposal checks; no live account or GUI verification."
+    "0.1.5-alpha.1": "58 automated tests, real Cordis Loader/Connection activation with dynamic trustedHosts interpolation, and RPC authentication/disposal checks. User confirmed successful DSH startup with the corrected webRuntime/webServer dependency list; no live model or full account-flow verification."
   }
 }

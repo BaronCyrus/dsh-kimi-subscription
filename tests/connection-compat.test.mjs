@@ -28,12 +28,14 @@ async function mount(patches, { legacy = false, fullPlugin = false } = {}) {
   } }
   loader.builtins.credentials = { apply(c) {
     c.provide('credentials', { resolve: async () => undefined })
+    c.provide('webRuntime', { trustedHosts: ['test.invalid'] })
     c.provide('llm', { registerAdapter: () => () => {} })
     c.provide('attachments', {})
     c.provide('web', { searchProviders: new Map(), registerSearchProvider: () => () => {} })
     c.provide('settings', { register: () => ({ get: () => ({ searchProvider: 'default' }), watch: () => () => {} }) })
   } }
-  const connection = { inject: legacy ? legacyConnection.inject : connectionInject, apply(c) {
+  const connection = { inject: legacy ? legacyConnection.inject : connectionInject, apply(c, config) {
+    assert.deepEqual(config.trustedHosts, ['test.invalid'])
     const Connection = legacy ? legacyConnection.HostConnectionService : HostConnectionService
     new Connection(c, [], { isAuthenticated: () => false })
   } }
@@ -47,7 +49,9 @@ async function mount(patches, { legacy = false, fullPlugin = false } = {}) {
   const rows = applyEntryPatches([
     { id: 'webserver', name: 'cordis:webserver' },
     { id: 'credentials', name: 'cordis:credentials' },
-    { id: 'connection', name: '@deepseek-ai/dsh-client-connection', config: { trustedHosts: [] } },
+    // Match the official web profile: entry-level dependency and !!js expression.
+    { id: 'connection', name: '@deepseek-ai/dsh-client-connection', inject: ['webRuntime'],
+      config: { trustedHosts: { __jsExpr: 'ctx.webRuntime.trustedHosts' } } },
   ], patches, message => assert.fail(message))
   try {
     await loader.root.update(rows)
@@ -66,11 +70,16 @@ test('unpatched DSH 0.1.5 connection reproduces the webServer injection error', 
   await assert.rejects(mount(insert), /cannot get property "webServer" without inject/u)
 })
 
+test('1.2.4 replacement loses the profile webRuntime injection during config interpolation', async () => {
+  const broken = bundle.map(patch => patch.id === 'connection' ? { ...patch, inject: ['webServer'] } : patch)
+  await assert.rejects(mount(broken), /cannot get property "webRuntime" without inject/u)
+})
+
 test('shipped bundle mounts RPC through the real loader and disposes its route', async () => {
   const host = await mount(bundle)
   try {
     assert.deepEqual([...host.routes.keys()], [CHANNEL])
-    assert.deepEqual(host.rows.find(row => row.id === 'connection').config, { trustedHosts: [] })
+    assert.deepEqual(host.rows.find(row => row.id === 'connection').config, { trustedHosts: { __jsExpr: 'ctx.webRuntime.trustedHosts' } })
     // The compatibility patch must keep the Connection authentication fence.
     let status, body
     await host.routes.get(CHANNEL).handler({ headers: { host: 'localhost' }, method: 'POST' }, {

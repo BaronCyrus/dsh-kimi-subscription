@@ -34,4 +34,4 @@ Installing any DSH plugin grants its Host code access to the services named in i
 
 ## DSH 0.1.5 compatibility patch
 
-Version 1.2.4 augments only the official `connection` loader entry with the `webServer` dependency required by its RPC registration. It does not bypass Cordis service lookup, replace route handlers, weaken the host authentication fence, or read account credentials during activation tests. Automated tests verify that an unauthenticated loopback request is still rejected.
+Version 1.2.5 declares both `webRuntime` and `webServer` on the official `connection` loader entry, preserving the dynamic trusted-host configuration dependency as well as the dependency required by RPC registration. It does not bypass Cordis service lookup, replace route handlers, weaken the host authentication fence, or read account credentials during activation tests. Automated tests verify that an unauthenticated loopback request is still rejected.

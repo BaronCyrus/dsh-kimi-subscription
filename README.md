@@ -23,19 +23,21 @@
 当前版本兼容 DeepSeek Harness `0.1.1-rc.2` 与 `0.1.2-alpha.2` / `0.1.2-alpha.3` / `0.1.2-alpha.5` 以及 `0.1.5-alpha.1`（`compatibility.json` 记录实测版本）。通过 npm 安装到目标 profile：
 
 ```sh
-dsh plugin --profile web add dsh-kimi-subscription@1.2.4
+dsh plugin --profile web add dsh-kimi-subscription@1.2.5
 dsh plugin --profile web list dsh-kimi-subscription --depth 0
 ```
 
 也可以从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载对应版本的 `.tgz` 后安装：
 
 ```sh
-dsh plugin --profile web add ./dsh-kimi-subscription-1.2.4.tgz
+dsh plugin --profile web add ./dsh-kimi-subscription-1.2.5.tgz
 ```
 
-`1.2.4` 修复 DSH 升级后 `cannot get property "webServer" without inject` 的启动错误：插件 bundle 为官方 `connection` 配置行补充 `webServer` 注入，Loader 会合并模块自身的依赖；无需修改全局 dsh 文件。旧版 Connection 已声明该依赖，重复声明不会改变行为。此补丁以 `connection` 为行 ID，并校验官方包名；自定义 profile 若改过此行 ID，需在对应行补充 `inject: [webServer]`。
+`1.2.5` 修复 DSH `0.1.5-alpha.1` 启动时的 `webServer` / `webRuntime` 注入错误：插件 bundle 为官方 `connection` 配置行同时声明 `webRuntime` 和 `webServer`，保留动态 `trustedHosts` 配置所需的依赖。无需修改全局 dsh 文件，也无需为标准 web profile 手动添加补丁；已经添加同样本地补丁的用户可继续保留。
 
-兼容验证覆盖完整插件在新旧 Connection 下的隔离加载、RPC 注册/鉴权/卸载和单元测试；未使用真实账号调用模型，也未做浏览器手动验收。
+此补丁以 `connection` 为行 ID，并校验官方包名。自定义 profile 若改过此行 ID，需在对应行补充 `inject: [webRuntime, webServer]`，并保留自定义配置使用的其他依赖。`1.2.4` 用户建议升级到 `1.2.5`，以修复原补丁覆盖 `webRuntime` 导致的后续启动错误。
+
+兼容验证覆盖完整插件在新旧 Connection 下的隔离加载、动态配置求值、RPC 注册/鉴权/卸载和单元测试；用户已确认应用相同修正后能够成功进入 DSH。未执行真实模型调用或完整账号功能验收。
 
 手动重启 DSH 后：
 
