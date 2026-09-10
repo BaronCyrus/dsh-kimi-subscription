@@ -96,7 +96,7 @@ test('shipped bundle mounts RPC through the real loader and disposes its route',
 })
 
 for (const legacy of [false, true]) {
-  test(`full Kimi plugin activates with ${legacy ? '0.1.2-alpha.5' : '0.1.5-alpha.1'} Connection`, async () => {
+  test(`full Kimi plugin activates with ${legacy ? '0.1.2-alpha.5' : '0.1.5-alpha.2'} Connection`, async () => {
     const home = await mkdtemp(join(tmpdir(), 'dsh-kimi-compat-'))
     const previous = process.env.DSH_HOME
     process.env.DSH_HOME = home

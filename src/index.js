@@ -59,6 +59,9 @@ export function apply(ctx) {
     displayName: DISPLAY_NAME,
     piProvider: provider,
     configuredMaxTokens: new Map(),
+    // DSH 0.1.5-alpha.2 consults per-model errors before resolving metadata.
+    // This provider uses pi-ai's catalog without user-defined model overrides.
+    modelErrors: new Map(),
     streamIdleTimeoutMs: 10 * 60 * 1000,
     maxRequestImageBytes: MAX_REQUEST_IMAGE_BYTES,
     requestImagePixelBudget: REQUEST_IMAGE_PIXEL_BUDGET,

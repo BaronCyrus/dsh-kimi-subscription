@@ -96,3 +96,25 @@ test('plugin registers an isolated Kimi subscription group and loopback auth RPC
   const invalid = await host.handled[0].handler('preferences/update', { searchProvider: 'bogus' }, new AbortController().signal)
   assert.equal(invalid.ok, false)
 })
+
+// Listing succeeds even when model resolution is incompatible with the host.
+// Exercise the same resolution step used by DSH's browser model catalog, plus
+// call preparation, without opening a stream or reading any credentials.
+test('every advertised Kimi model resolves and prepares on the real host adapter', async () => {
+  const host = fakeContext()
+  host.ctx.credentials.resolve = async () => assert.fail('model metadata must not read credentials')
+  apply(host.ctx)
+  const adapter = host.registered[0].adapter
+  const models = await adapter.listModels(PROVIDER)
+  assert.ok(models.length > 0)
+  for (const model of models) {
+    const resolved = await adapter.resolveModel(PROVIDER, model.id)
+    assert.equal(resolved.provider, PROVIDER)
+    assert.equal(resolved.id, model.id)
+    assert.equal(resolved.name, model.name)
+    assert.ok(resolved.context.contextWindow > 0)
+    const prepared = await adapter.prepareCall(PROVIDER, model.id)
+    assert.deepEqual(prepared.model, resolved)
+    assert.equal(typeof prepared.stream, 'function')
+  }
+})

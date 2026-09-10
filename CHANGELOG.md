@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.6
+
+- Fix `Cannot read properties of undefined (reading 'get')` when DeepSeek Harness `0.1.5-alpha.2` resolves the Kimi subscription model catalog: initialize the provider profile's `modelErrors` map required by the host PiAiAdapter.
+- Extend peer compatibility to DSH `0.1.5-alpha.2` and update development dependencies and the lockfile to test against that host release, retaining previous peer ranges.
+- Add a regression test that first reproduced the exact failure and now resolves every advertised Kimi model and prepares its call through the real host adapter. Catalog verification asserts that credentials are not read and never opens a model stream.
+- Validation: 59 automated tests, Host/Client builds, and package creation; no live model calls or full GUI/account-flow verification.
+
 ## 1.2.5
 
 - Correct the 1.2.4 Connection compatibility patch to retain the official profile's `webRuntime` injection alongside `webServer`. Entry patches replace the row's inject array; dropping `webRuntime` prevents `trustedHosts: !!js ctx.webRuntime.trustedHosts` from being evaluated during startup.

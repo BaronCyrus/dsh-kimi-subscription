@@ -1,14 +1,16 @@
 {
-  "latestTested": "0.1.5-alpha.1",
+  "latestTested": "0.1.5-alpha.2",
   "supported": [
     "0.1.1-rc.2",
     "0.1.2-alpha.2",
     "0.1.2-alpha.3",
     "0.1.2-alpha.5",
-    "0.1.5-alpha.1"
+    "0.1.5-alpha.1",
+    "0.1.5-alpha.2"
   ],
   "piAi": "0.85.1",
   "validation": {
-    "0.1.5-alpha.1": "58 automated tests, real Cordis Loader/Connection activation with dynamic trustedHosts interpolation, and RPC authentication/disposal checks. User confirmed successful DSH startup with the corrected webRuntime/webServer dependency list; no live model or full account-flow verification."
+    "0.1.5-alpha.1": "58 automated tests, real Cordis Loader/Connection activation with dynamic trustedHosts interpolation, and RPC authentication/disposal checks. User confirmed successful DSH startup with the corrected webRuntime/webServer dependency list; no live model or full account-flow verification.",
+    "0.1.5-alpha.2": "59 automated tests against the published host packages, including resolution and call preparation of every advertised Kimi model using the real PiAiAdapter, plus Cordis Loader/Connection activation and RPC authentication/disposal checks. No live model calls, credential reads during catalog verification, or full GUI/account-flow verification."
   }
 }

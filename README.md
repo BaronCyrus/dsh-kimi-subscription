@@ -20,22 +20,24 @@
 
 ## 快速开始
 
-当前版本兼容 DeepSeek Harness `0.1.1-rc.2` 与 `0.1.2-alpha.2` / `0.1.2-alpha.3` / `0.1.2-alpha.5` 以及 `0.1.5-alpha.1`（`compatibility.json` 记录实测版本）。通过 npm 安装到目标 profile：
+当前版本兼容 DeepSeek Harness `0.1.1-rc.2` 与 `0.1.2-alpha.2` / `0.1.2-alpha.3` / `0.1.2-alpha.5` 以及 `0.1.5-alpha.1` / `0.1.5-alpha.2`（`compatibility.json` 记录实测版本）。通过 npm 安装到目标 profile：
 
 ```sh
-dsh plugin --profile web add dsh-kimi-subscription@1.2.5
+dsh plugin --profile web add dsh-kimi-subscription@1.2.6
 dsh plugin --profile web list dsh-kimi-subscription --depth 0
 ```
 
 也可以从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载对应版本的 `.tgz` 后安装：
 
 ```sh
-dsh plugin --profile web add ./dsh-kimi-subscription-1.2.5.tgz
+dsh plugin --profile web add ./dsh-kimi-subscription-1.2.6.tgz
 ```
+
+`1.2.6` 修复 DSH `0.1.5-alpha.2` 模型目录中的 `Cannot read properties of undefined (reading 'get')`：插件为真实 PiAiAdapter 补齐 `modelErrors` 映射，并逐一验证所有 Kimi 模型的元数据解析与调用准备。验证不读取真实凭据或发起模型请求。该修复仅覆盖 Kimi 插件；其他订阅插件的同类错误需要各自更新。
 
 `1.2.5` 修复 DSH `0.1.5-alpha.1` 启动时的 `webServer` / `webRuntime` 注入错误：插件 bundle 为官方 `connection` 配置行同时声明 `webRuntime` 和 `webServer`，保留动态 `trustedHosts` 配置所需的依赖。无需修改全局 dsh 文件，也无需为标准 web profile 手动添加补丁；已经添加同样本地补丁的用户可继续保留。
 
-此补丁以 `connection` 为行 ID，并校验官方包名。自定义 profile 若改过此行 ID，需在对应行补充 `inject: [webRuntime, webServer]`，并保留自定义配置使用的其他依赖。`1.2.4` 用户建议升级到 `1.2.5`，以修复原补丁覆盖 `webRuntime` 导致的后续启动错误。
+此补丁以 `connection` 为行 ID，并校验官方包名。自定义 profile 若改过此行 ID，需在对应行补充 `inject: [webRuntime, webServer]`，并保留自定义配置使用的其他依赖。`1.2.4` 用户建议升级到 `1.2.6`，以修复原补丁覆盖 `webRuntime` 导致的后续启动错误。
 
 兼容验证覆盖完整插件在新旧 Connection 下的隔离加载、动态配置求值、RPC 注册/鉴权/卸载和单元测试；用户已确认应用相同修正后能够成功进入 DSH。未执行真实模型调用或完整账号功能验收。
 
@@ -71,7 +73,7 @@ DSH 全局只有一个生效的搜索提供方槽位。本插件默认**不接�
 
 **仅安装本插件时**：在设置页选择「自动」后，Kimi 模型走 Kimi 订阅搜索，其他模型走 DSH 默认搜索；选择「始终使用 Kimi 搜索」则所有模型都走 Kimi 订阅搜索；切回「不接管」会恢复接管前的搜索来源。
 
-当前模型目录来自 `@earendil-works/pi-ai` `0.82.1`：
+当前模型目录来自 `@earendil-works/pi-ai` `0.85.1`：
 
 - `k3`
 - `k3-256k`
