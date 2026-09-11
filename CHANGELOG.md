@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.7
+
+- Support Kimi Code's K2.8 Preview upgrade: `kimi-for-coding` was upgraded in place (same model ID) to K2.8 Preview with a 1M context window and `low` / `high` / `max` thinking levels (default `max`). pi-ai's bundled catalog still describes K2.7 Code, so the plugin now patches that model's name, context window, and thinking-level map locally until the upstream catalog catches up. No model ID changes; `k3`, `k3-256k`, and `kimi-for-coding-highspeed` are unchanged.
+
 ## 1.2.6
 
 - Fix `Cannot read properties of undefined (reading 'get')` when DeepSeek Harness `0.1.5-alpha.2` resolves the Kimi subscription model catalog: initialize the provider profile's `modelErrors` map required by the host PiAiAdapter.

@@ -18,6 +18,23 @@ test('provider keeps Kimi Code protocol behavior under a distinct DSH route', ()
   assert.ok(models.every(model => model.api === 'anthropic-messages'))
 })
 
+test('kimi-for-coding carries K2.8 Preview metadata', () => {
+  const provider = createKimiSubscriptionProvider()
+  const model = provider.getModels().find(entry => entry.id === 'kimi-for-coding')
+  assert.ok(model)
+  assert.equal(model.name, 'Kimi K2.8 Preview')
+  assert.equal(model.contextWindow, 1048576)
+  assert.deepEqual(model.thinkingLevelMap, {
+    off: null,
+    minimal: null,
+    low: 'low',
+    medium: null,
+    high: 'high',
+    xhigh: null,
+    max: 'max',
+  })
+})
+
 async function* failingStream(error) { throw error }
 async function* failAfterChunk(error) { yield { type: 'chunk' }; throw error }
 async function* okStream() { yield { type: 'chunk' } }

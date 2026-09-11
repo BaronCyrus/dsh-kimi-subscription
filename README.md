@@ -23,15 +23,17 @@
 当前版本兼容 DeepSeek Harness `0.1.1-rc.2` 与 `0.1.2-alpha.2` / `0.1.2-alpha.3` / `0.1.2-alpha.5` 以及 `0.1.5-alpha.1` / `0.1.5-alpha.2`（`compatibility.json` 记录实测版本）。通过 npm 安装到目标 profile：
 
 ```sh
-dsh plugin --profile web add dsh-kimi-subscription@1.2.6
+dsh plugin --profile web add dsh-kimi-subscription@1.2.7
 dsh plugin --profile web list dsh-kimi-subscription --depth 0
 ```
 
 也可以从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载对应版本的 `.tgz` 后安装：
 
 ```sh
-dsh plugin --profile web add ./dsh-kimi-subscription-1.2.6.tgz
+dsh plugin --profile web add ./dsh-kimi-subscription-1.2.7.tgz
 ```
+
+`1.2.7` 适配 Kimi Code 的 K2.8 Preview 升级：`kimi-for-coding` 已原地升级为 K2.8 Preview（Model ID 不变），插件在本地修正其名称、1M 上下文窗口与 `low` / `high` / `max` 思考档位映射（pi-ai 内置目录尚未跟进，上游更新后该补丁可移除）。无模型 ID 变更，`k3` / `k3-256k` / `kimi-for-coding-highspeed` 不受影响。
 
 `1.2.6` 修复 DSH `0.1.5-alpha.2` 模型目录中的 `Cannot read properties of undefined (reading 'get')`：插件为真实 PiAiAdapter 补齐 `modelErrors` 映射，并逐一验证所有 Kimi 模型的元数据解析与调用准备。验证不读取真实凭据或发起模型请求。该修复仅覆盖 Kimi 插件；其他订阅插件的同类错误需要各自更新。
 
@@ -79,6 +81,8 @@ DSH 全局只有一个生效的搜索提供方槽位。本插件默认**不接�
 - `k3-256k`
 - `kimi-for-coding`
 - `kimi-for-coding-highspeed`
+
+`kimi-for-coding` 已由 Kimi Code 原地升级为 **K2.8 Preview**（Model ID 不变，支持 1M 上下文与 `low` / `high` / `max` 思考档位，默认 `max`）。pi-ai 内置目录尚未跟进，插件会在本地修正该模型的名称、上下文窗口与思考档位映射；上游目录更新后该补丁可移除。
 
 ## Kimi Code 与 Open Platform
 

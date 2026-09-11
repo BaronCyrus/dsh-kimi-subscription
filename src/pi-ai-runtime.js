@@ -8,6 +8,29 @@ const AUTH_REJECTION = /\b401\b|invalid_authentication/iu
 
 const isAuthRejection = error => AUTH_REJECTION.test(String(error?.message ?? error))
 
+// Kimi Code upgraded `kimi-for-coding` in place to K2.8 Preview: 1M context
+// for all membership tiers and low/high/max thinking levels (default max).
+// pi-ai's bundled catalog still describes K2.7 Code, so patch the stale
+// fields until the upstream catalog catches up.
+// https://www.kimi.com/code/docs/kimi-code/models.html
+const K28_PREVIEW_THINKING_LEVEL_MAP = Object.freeze({
+  off: null,
+  minimal: null,
+  low: 'low',
+  medium: null,
+  high: 'high',
+  xhigh: null,
+  max: 'max',
+})
+const K28_PREVIEW_MODEL_PATCH = Object.freeze({
+  name: 'Kimi K2.8 Preview',
+  contextWindow: 1048576,
+  thinkingLevelMap: K28_PREVIEW_THINKING_LEVEL_MAP,
+})
+
+const withK28PreviewMetadata = model =>
+  model.id === 'kimi-for-coding' ? Object.freeze({ ...model, ...K28_PREVIEW_MODEL_PATCH }) : model
+
 /**
  * Observe a pi-ai event stream and report an upstream authentication
  * rejection (HTTP 401) that occurs before any chunk was produced. Mid-stream
@@ -56,7 +79,7 @@ export function createKimiSubscriptionProvider({ onAuthRejected } = {}) {
     throw new Error('The installed pi-ai Kimi provider does not expose the required subscription authentication methods')
   }
   const models = Object.freeze(base.getModels().map(model => Object.freeze({
-    ...model,
+    ...withK28PreviewMetadata(model),
     provider: PROVIDER,
   })))
   return Object.freeze({
