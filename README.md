@@ -33,16 +33,6 @@ dsh plugin --profile web list dsh-kimi-subscription --depth 0
 dsh plugin --profile web add ./dsh-kimi-subscription-1.2.7.tgz
 ```
 
-`1.2.7` 适配 Kimi Code 的 K2.8 Preview 升级：`kimi-for-coding` 已原地升级为 K2.8 Preview（Model ID 不变），插件在本地修正其名称、1M 上下文窗口与 `low` / `high` / `max` 思考档位映射（pi-ai 内置目录尚未跟进，上游更新后该补丁可移除）。无模型 ID 变更，`k3` / `k3-256k` / `kimi-for-coding-highspeed` 不受影响。
-
-`1.2.6` 修复 DSH `0.1.5-alpha.2` 模型目录中的 `Cannot read properties of undefined (reading 'get')`：插件为真实 PiAiAdapter 补齐 `modelErrors` 映射，并逐一验证所有 Kimi 模型的元数据解析与调用准备。验证不读取真实凭据或发起模型请求。该修复仅覆盖 Kimi 插件；其他订阅插件的同类错误需要各自更新。
-
-`1.2.5` 修复 DSH `0.1.5-alpha.1` 启动时的 `webServer` / `webRuntime` 注入错误：插件 bundle 为官方 `connection` 配置行同时声明 `webRuntime` 和 `webServer`，保留动态 `trustedHosts` 配置所需的依赖。无需修改全局 dsh 文件，也无需为标准 web profile 手动添加补丁；已经添加同样本地补丁的用户可继续保留。
-
-此补丁以 `connection` 为行 ID，并校验官方包名。自定义 profile 若改过此行 ID，需在对应行补充 `inject: [webRuntime, webServer]`，并保留自定义配置使用的其他依赖。`1.2.4` 用户建议升级到 `1.2.6`，以修复原补丁覆盖 `webRuntime` 导致的后续启动错误。
-
-兼容验证覆盖完整插件在新旧 Connection 下的隔离加载、动态配置求值、RPC 注册/鉴权/卸载和单元测试；用户已确认应用相同修正后能够成功进入 DSH。未执行真实模型调用或完整账号功能验收。
-
 手动重启 DSH 后：
 
 1. 打开 **设置 → Kimi 订阅**；
