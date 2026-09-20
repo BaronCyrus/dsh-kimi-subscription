@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.8
+
+- Fix [#2](https://github.com/BaronCyrus/dsh-kimi-subscription/issues/2): resolve the Kimi subscription retry policy through the host's public `resolveRetryPolicy` helper before passing it to `PiAiAdapter`. Plugin-supplied profiles already need a resolved policy; missing backoff fields previously produced `NaN` delays and `session event "llm/retry" carries non-JSON-serializable data`, masking the original provider error.
+- Preserve normal mode, the two-retry limit, and the existing six retryable codes (including `AUTH` for expired-in-flight OAuth tokens). Use host defaults for initial delay, maximum delay, and jitter. This restores bounded retries; it does not restore exhausted quota or fix genuinely revoked credentials.
+- Add offline regression coverage at the actual adapter, host retry executor, and Session event-validation boundary, including finite delays, retry exhaustion, provider-directed delays, and cancellation. Test dependencies are pinned to the existing DSH `0.1.5-alpha.2` baseline; supported host versions are unchanged. No live credentials or model requests are used.
+
 ## 1.2.7
 
 - Support Kimi Code's K2.8 Preview upgrade: `kimi-for-coding` was upgraded in place (same model ID) to K2.8 Preview with a 1M context window and `low` / `high` / `max` thinking levels (default `max`). pi-ai's bundled catalog still describes K2.7 Code, so the plugin now patches that model's name, context window, and thinking-level map locally until the upstream catalog catches up. No model ID changes; `k3`, `k3-256k`, and `kimi-for-coding-highspeed` are unchanged.

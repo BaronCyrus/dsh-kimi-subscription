@@ -2,7 +2,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
-import { LlmError } from '@deepseek-ai/dsh-llm'
+import { LlmError, resolveRetryPolicy } from '@deepseek-ai/dsh-llm'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import z from '@deepseek-ai/schemastery'
 
@@ -71,11 +71,13 @@ export function apply(ctx) {
     // guard marks the token rejected, the retry re-resolves auth, and pi-ai
     // refreshes under its serialized lock. Genuinely dead credentials still
     // fail after the retries.
-    retryPolicy: {
+    // Injected profiles bypass settings resolution. The adapter requires a
+    // resolved policy, including finite backoff defaults for durable retries.
+    retryPolicy: resolveRetryPolicy({
       mode: 'normal',
       maxRetries: 2,
       retryableCodes: ['EMPTY_RESPONSE', 'RATE_LIMIT', 'SERVER', 'TIMEOUT', 'TRANSPORT', 'AUTH'],
-    },
+    }, 'kimi-subscription.retryPolicy'),
   })
   const profiles = new Map([[PROVIDER, profile]])
   const adapter = new PiAiAdapter({
