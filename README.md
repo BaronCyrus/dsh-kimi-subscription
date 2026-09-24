@@ -20,19 +20,19 @@
 
 ## 快速开始
 
-当前版本兼容 `compatibility.json` 列出的 DeepSeek Harness 版本，包括桌面版 `0.1.7-rc.1`。桌面版插件安装器按 `@deepseek-ai/dsh-*` peer 范围判断兼容性；`1.2.8` 及更早版本不包含 `0.1.7-rc.1`，安装器会提示不兼容。`desktop` profile 只能由桌面应用自己安装插件，命令行对它会直接拒绝。
+当前版本对 DeepSeek Harness 的 `@deepseek-ai/dsh-*` peer 声明为范围 `>=0.1.1-rc.2 <0.2.0-0`，因此 `0.1` 线上的新版本（含预发布）都可以直接加载，不需要每次跟着发版；`compatibility.json` 记录实测过的版本。`desktop` profile 只能由桌面应用自己安装插件，命令行对它会直接拒绝。
 
 命令行安装到 `web` profile：
 
 ```sh
-dsh plugin --profile web add dsh-kimi-subscription@1.2.11
+dsh plugin --profile web add dsh-kimi-subscription@1.2.12
 dsh plugin --profile web list dsh-kimi-subscription --depth 0
 ```
 
 也可以从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载对应版本的 `.tgz` 后安装：
 
 ```sh
-dsh plugin --profile web add ./dsh-kimi-subscription-1.2.11.tgz
+dsh plugin --profile web add ./dsh-kimi-subscription-1.2.12.tgz
 ```
 
 手动重启 DSH 后：

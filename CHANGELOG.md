@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.12
+
+- Replace the enumerated `@deepseek-ai/dsh-*` peer versions with the range `>=0.1.1-rc.2 <0.2.0-0`. The desktop app auto-updated from `0.1.7-rc.1` to `0.1.7-rc.2` and every enumerated peer stopped matching, so profile startup skipped the bundle and the Kimi models disappeared again with `no adapter registered`. A range keeps the plugin loading across the 0.1 line while still refusing `0.2.0` prereleases.
+- The peer gate is now asserted by release semantics rather than by literals: `tests/package-contract.test.mjs` runs the installer's rule (`semver.satisfies(runtime, range, { includePrerelease: true })`) against older releases, the current desktop release, and a rejected `0.2.0` prerelease.
+- No source behavior change; no live model calls or credential reads.
+
 ## 1.2.11
 
 - Fix “无法检查最新版本” on the desktop app when another plugin replaces undici's global dispatcher with one that does not decompress responses. Registry, usage, and search requests now ask for an identity-encoded body, so `response.json()` no longer fails on gzip bytes.

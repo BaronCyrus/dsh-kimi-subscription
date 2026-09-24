@@ -2,7 +2,15 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
+import semver from 'semver'
+
 const text = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
+
+/** The desktop installer's gate: every dsh peer must satisfy the runtime. */
+const incompatiblePeers = (manifest, runtime) => Object.entries(manifest.peerDependencies)
+  .filter(([name]) => name === '@deepseek-ai/dsh' || name.startsWith('@deepseek-ai/dsh-'))
+  .filter(([, range]) => !semver.satisfies(runtime, range, { includePrerelease: true }))
+  .map(([name]) => name)
 
 test('bundle contributes one host row and one DSH client module', async () => {
   const [manifestText, patch, build] = await Promise.all([
@@ -17,15 +25,15 @@ test('bundle contributes one host row and one DSH client module', async () => {
   assert.ok(manifest.dsh.client.inject.includes('@deepseek-ai/dsh-client-ui-conversation'))
   assert.ok(manifest.dsh.client.inject.includes('@deepseek-ai/dsh-client-ui-model-selection'))
   assert.equal(manifest.dsh.client.inject.includes('@deepseek-ai/dsh-client-runtime'), false)
-  // The desktop installer accepts a plugin only when every @deepseek-ai/dsh-*
-  // peer satisfies the running version, including prereleases. 0.1.7-rc.1 is
-  // the Electron app that reported this plugin as incompatible.
-  const desktop = '0.1.7-rc.1'
-  for (const [name, range] of Object.entries(manifest.peerDependencies)) {
-    if (name !== '@deepseek-ai/dsh' && !name.startsWith('@deepseek-ai/dsh-')) continue
-    assert.equal(typeof range, 'string')
-    assert.ok(range.split('||').map(part => part.trim()).includes(desktop), `${name} does not accept DSH ${desktop}`)
-  }
+  // The desktop installer and profile startup both reject a plugin unless every
+  // @deepseek-ai/dsh-* peer satisfies the running runtime, prereleases included.
+  // A literal enumeration that names only already-released versions silently
+  // drops the plugin on the next host bump, which is why these ranges must span
+  // the whole 0.1 line rather than list the versions seen so far.
+  assert.deepEqual(incompatiblePeers(manifest, '0.1.7-rc.2'), [])
+  assert.deepEqual(incompatiblePeers(manifest, '0.1.5-alpha.2'), [])
+  assert.deepEqual(incompatiblePeers(manifest, '0.1.1-rc.2'), [])
+  assert.notDeepEqual(incompatiblePeers(manifest, '0.2.0-rc.1'), [])
   assert.equal(manifest.peerDependencies['@deepseek-ai/dsh-client-runtime'], undefined)
   assert.match(patch, /id:\s*kimi-subscription/u)
   assert.match(patch, /name:\s*['"]dsh-kimi-subscription['"]/u)
