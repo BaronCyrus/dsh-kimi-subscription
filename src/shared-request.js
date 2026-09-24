@@ -7,8 +7,12 @@
  * every request. Live lookup follows the restore and stays fetch-compatible
  * even while such a wrapper is installed.
  */
-export function ambientFetch(...args) {
-  return globalThis.fetch(...args)
+export function ambientFetch(input, init) {
+  // Another profile plugin may replace undici's global dispatcher with one that
+  // does not decompress. Ask for an identity body so response.json() still works.
+  const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined))
+  if (!headers.has('accept-encoding')) headers.set('accept-encoding', 'identity')
+  return globalThis.fetch(input, { ...init, headers })
 }
 
 /**

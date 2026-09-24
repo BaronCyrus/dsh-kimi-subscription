@@ -47,6 +47,31 @@ const registryOk = (version, observe) => async (url, init) => {
   return { ok: true, status: 200, async json() { return { version } } }
 }
 
+test('version check asks the registry for an uncompressed document', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'kimi-version-encoding-'))
+  const ownPackageJsonUrl = await npmInstall(root, '1.2.10')
+  const original = globalThis.fetch
+  let acceptEncoding
+  globalThis.fetch = async (_url, init) => {
+    acceptEncoding = new Headers(init?.headers).get('accept-encoding')
+    if (acceptEncoding !== 'identity') {
+      return { ok: true, status: 200, async json() { throw new SyntaxError('gzip body') } }
+    }
+    return { ok: true, status: 200, async json() { return { version: '1.2.10' } } }
+  }
+  try {
+    const value = await createKimiPluginManager({
+      env: { DSH_HOME: root },
+      ownPackageJsonUrl,
+    }).read({ force: true })
+    assert.equal(acceptEncoding, 'identity')
+    assert.equal(value.latest, '1.2.10')
+    assert.equal(value.updateAvailable, false)
+  } finally {
+    globalThis.fetch = original
+  }
+})
+
 test('semver parsing and comparison drive the update badge', () => {
   assert.deepEqual(parseSemver(' 0.3.3 '), { major: 0, minor: 3, patch: 3, pre: undefined })
   assert.equal(parseSemver('v0.3.3'), undefined)

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.11
+
+- Fix “无法检查最新版本” on the desktop app when another plugin replaces undici's global dispatcher with one that does not decompress responses. Registry, usage, and search requests now ask for an identity-encoded body, so `response.json()` no longer fails on gzip bytes.
+- No live model calls or credential reads.
+
 ## 1.2.10
 
 - Fix the desktop settings page on DeepSeek Harness `0.1.7-rc.1`. That host replaced `settings.register` with volatile plugin Config, so `1.2.9` threw `ctx.settings.register is not a function` while applying and never mounted the account RPC. The settings page then reported that it could not read the Kimi subscription status. The search preference now uses `settings.register` on older hosts and this plugin's volatile Config on `0.1.7`.
