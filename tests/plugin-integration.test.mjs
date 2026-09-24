@@ -97,6 +97,30 @@ test('plugin registers an isolated Kimi subscription group and loopback auth RPC
   assert.equal(invalid.ok, false)
 })
 
+test('plugin activates on DSH 0.1.7 settings, which has no register method', async () => {
+  const host = fakeContext()
+  let stored = 'default'
+  const configured = []
+  host.ctx.settings = {
+    writable: true,
+    configure(presentation, owner) { configured.push({ presentation, owner }) },
+    async update(ns, patch) {
+      assert.equal(ns, 'kimi-subscription')
+      stored = patch.searchProvider
+    },
+  }
+  host.ctx.fiber = { entry: { options: { id: 'kimi-subscription' } } }
+  apply(host.ctx, { searchProvider: { get: () => stored } })
+  const status = await host.handled[0].handler('status', {}, new AbortController().signal)
+  assert.deepEqual(status, { ok: true, value: { authenticated: false, provider: PROVIDER } })
+  assert.deepEqual(configured, [{ presentation: { auto: false }, owner: host.ctx.fiber }])
+  const preference = await host.handled[0].handler('preferences/status', {}, new AbortController().signal)
+  assert.equal(preference.value.searchProvider, 'default')
+  const updated = await host.handled[0].handler('preferences/update', { searchProvider: 'kimi' }, new AbortController().signal)
+  assert.equal(updated.value.searchProvider, 'kimi')
+  assert.equal(stored, 'kimi')
+})
+
 // Listing succeeds even when model resolution is incompatible with the host.
 // Exercise the same resolution step used by DSH's browser model catalog, plus
 // call preparation, without opening a stream or reading any credentials.

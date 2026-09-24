@@ -4,7 +4,6 @@ import { join } from 'node:path'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { LlmError, resolveRetryPolicy } from '@deepseek-ai/dsh-llm'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
-import z from '@deepseek-ai/schemastery'
 
 import { CHANNEL, CREDENTIAL_NAME, DISPLAY_NAME, PROVIDER } from './constants.js'
 import { createKimiAuthService, DshKimiCredentialStore } from './credential-store.js'
@@ -21,26 +20,31 @@ import { createKimiRpcHandler, KimiLoginCoordinator } from './login-coordinator.
 import { createKimiSubscriptionProvider, createModels } from './pi-ai-runtime.js'
 import { createKimiPluginManager, findInstall } from './plugin-version.js'
 import { createKimiSearchComposition } from './search-composition.js'
+import {
+  Config,
+  createSearchSettings,
+  SEARCH_PROVIDER_AUTO,
+  SEARCH_PROVIDER_DEFAULT,
+  SEARCH_PROVIDER_FIELD,
+  SEARCH_PROVIDER_KIMI,
+  SETTINGS_NAMESPACE,
+} from './search-settings.js'
 import { createKimiUsageReader, KIMI_USAGE_URL, parseKimiUsage } from './usage.js'
 
 export const name = 'kimi-subscription'
 export const inject = ['llm', 'credentials', 'connection', 'attachments', 'web', 'settings', 'loader']
+export { Config, SETTINGS_NAMESPACE, SEARCH_PROVIDER_FIELD, SEARCH_PROVIDER_DEFAULT, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_KIMI }
 
 const CREDENTIAL_REF = credentialRef(CREDENTIAL_NAME)
 const MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
 const REQUEST_IMAGE_PIXEL_BUDGET = 2048 * 2048
 const REQUEST_IMAGE_MAX_BYTES = 1024 * 1024
 
-export const SETTINGS_NAMESPACE = 'kimi-subscription'
-export const SEARCH_PROVIDER_FIELD = 'searchProvider'
-export const SEARCH_PROVIDER_DEFAULT = 'default'
-export const SEARCH_PROVIDER_AUTO = 'auto'
-export const SEARCH_PROVIDER_KIMI = 'kimi'
 const SEARCH_PROVIDER_CHOICES = [SEARCH_PROVIDER_DEFAULT, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_KIMI]
 const DSH_SEARCH_PROVIDER_FALLBACK = 'deepseek-official'
 const WEB_ENTRY_ID = 'web'
 
-export function apply(ctx) {
+export function apply(ctx, config) {
   const store = new DshKimiCredentialStore(ctx.credentials, CREDENTIAL_REF)
   const provider = createKimiSubscriptionProvider({
     onAuthRejected: () => store.markAccessRejected(),
@@ -106,9 +110,7 @@ export function apply(ctx) {
   const pluginManager = createKimiPluginManager()
   const coordinator = new KimiLoginCoordinator(auth)
 
-  const settings = ctx.settings.register(SETTINGS_NAMESPACE, z.object({
-    [SEARCH_PROVIDER_FIELD]: z.union(SEARCH_PROVIDER_CHOICES).default(SEARCH_PROVIDER_DEFAULT),
-  }))
+  const settings = createSearchSettings(ctx, config)
   const currentAgent = () => ctx.get?.('agents')?.currentInitiator?.()
   const kimiSearch = createKimiSearchProvider({ getAuth: () => authModels.getAuth(PROVIDER) })
   ctx.web.registerSearchProvider(kimiSearch)

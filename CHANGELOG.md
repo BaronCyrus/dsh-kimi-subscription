@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.10
+
+- Fix the desktop settings page on DeepSeek Harness `0.1.7-rc.1`. That host replaced `settings.register` with volatile plugin Config, so `1.2.9` threw `ctx.settings.register is not a function` while applying and never mounted the account RPC. The settings page then reported that it could not read the Kimi subscription status. The search preference now uses `settings.register` on older hosts and this plugin's volatile Config on `0.1.7`.
+- No live model calls or credential reads.
+
 ## 1.2.9
 
 - Accept DeepSeek Harness `0.1.7-rc.1`, the version shipped in the desktop app. Its plugin installer rejects a package unless every `@deepseek-ai/dsh-*` peer range satisfies that runtime (prereleases included), which is why `1.2.8` was reported as incompatible. Peer ranges now include the `0.1.5` / `0.1.6` / `0.1.7` releases through `0.1.7-rc.1`, and the development baseline is `0.1.7-rc.1`.
