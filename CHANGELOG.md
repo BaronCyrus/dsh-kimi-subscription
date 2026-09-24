@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.9
+
+- Accept DeepSeek Harness `0.1.7-rc.1`, the version shipped in the desktop app. Its plugin installer rejects a package unless every `@deepseek-ai/dsh-*` peer range satisfies that runtime (prereleases included), which is why `1.2.8` was reported as incompatible. Peer ranges now include the `0.1.5` / `0.1.6` / `0.1.7` releases through `0.1.7-rc.1`, and the development baseline is `0.1.7-rc.1`.
+- Drop the `@deepseek-ai/dsh-client-runtime` peer. Its last published release is `0.1.1-rc.2`, and the desktop app no longer ships it. The client inject list now names `@deepseek-ai/dsh-client-ui-conversation`, which owns the composer slot this plugin renders into.
+- Widen `@deepseek-ai/cordis` to `4.0.4` and `@deepseek-ai/schemastery` to `^3.18.2`, matching the desktop kernel. The `connection` compatibility patch is unchanged and still activates RPC on both the current and `0.1.2-alpha.5` Connection.
+- No live model calls, credential reads, or desktop GUI verification.
+
 ## 1.2.8
 
 - Fix [#2](https://github.com/BaronCyrus/dsh-kimi-subscription/issues/2): resolve the Kimi subscription retry policy through the host's public `resolveRetryPolicy` helper before passing it to `PiAiAdapter`. Plugin-supplied profiles already need a resolved policy; missing backoff fields previously produced `NaN` delays and `session event "llm/retry" carries non-JSON-serializable data`, masking the original provider error.

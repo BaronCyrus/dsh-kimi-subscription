@@ -46,17 +46,24 @@ async function mount(patches, { legacy = false, fullPlugin = false } = {}) {
   const originalImport = loader.import.bind(loader)
   loader.import = name => name === '@deepseek-ai/dsh-client-connection' ? Promise.resolve(connection)
     : name === 'dsh-kimi-subscription' ? Promise.resolve(fullPlugin ? kimiPlugin : consumer) : originalImport(name)
+  // Cordis loader 1.0.5 writes a failed entry's `disabled` flag back onto the row
+  // object. Clone so one negative case cannot disable the shared bundle next.
   const rows = applyEntryPatches([
     { id: 'webserver', name: 'cordis:webserver' },
     { id: 'credentials', name: 'cordis:credentials' },
     // Match the official web profile: entry-level dependency and !!js expression.
     { id: 'connection', name: '@deepseek-ai/dsh-client-connection', inject: ['webRuntime'],
       config: { trustedHosts: { __jsExpr: 'ctx.webRuntime.trustedHosts' } } },
-  ], patches, message => assert.fail(message))
+  ], structuredClone(patches), message => assert.fail(message))
   try {
     await loader.root.update(rows)
     await loader.await()
-    assert.equal(loader.resolve('kimi-subscription').fiber.state, 2)
+    const kimi = [...loader.entries()].find(entry => entry.options?.id === 'kimi-subscription')
+    if (kimi?.fiber?.state !== 2) {
+      // Loader 1.0.5 records the injection failure on the fiber instead of rejecting await().
+      const errors = [...loader.entries()].map(entry => entry.fiber?._error).filter(error => error instanceof Error)
+      throw errors.at(-1) ?? new Error(`kimi-subscription did not activate (state ${kimi?.fiber?.state})`)
+    }
     return { loader, routes, rows, close: () => ctx.fiber.dispose() }
   } catch (error) {
     await loader.root.stop()
@@ -96,7 +103,7 @@ test('shipped bundle mounts RPC through the real loader and disposes its route',
 })
 
 for (const legacy of [false, true]) {
-  test(`full Kimi plugin activates with ${legacy ? '0.1.2-alpha.5' : '0.1.5-alpha.2'} Connection`, async () => {
+  test(`full Kimi plugin activates with ${legacy ? '0.1.2-alpha.5' : '0.1.7-rc.1'} Connection`, async () => {
     const home = await mkdtemp(join(tmpdir(), 'dsh-kimi-compat-'))
     const previous = process.env.DSH_HOME
     process.env.DSH_HOME = home

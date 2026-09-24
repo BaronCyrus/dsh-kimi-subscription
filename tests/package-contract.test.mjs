@@ -14,7 +14,19 @@ test('bundle contributes one host row and one DSH client module', async () => {
   assert.equal(manifest.name, 'dsh-kimi-subscription')
   assert.equal(manifest.dsh.bundle.patch, './cordis.patch.yml')
   assert.equal(manifest.dsh.client.platform, 'web')
+  assert.ok(manifest.dsh.client.inject.includes('@deepseek-ai/dsh-client-ui-conversation'))
   assert.ok(manifest.dsh.client.inject.includes('@deepseek-ai/dsh-client-ui-model-selection'))
+  assert.equal(manifest.dsh.client.inject.includes('@deepseek-ai/dsh-client-runtime'), false)
+  // The desktop installer accepts a plugin only when every @deepseek-ai/dsh-*
+  // peer satisfies the running version, including prereleases. 0.1.7-rc.1 is
+  // the Electron app that reported this plugin as incompatible.
+  const desktop = '0.1.7-rc.1'
+  for (const [name, range] of Object.entries(manifest.peerDependencies)) {
+    if (name !== '@deepseek-ai/dsh' && !name.startsWith('@deepseek-ai/dsh-')) continue
+    assert.equal(typeof range, 'string')
+    assert.ok(range.split('||').map(part => part.trim()).includes(desktop), `${name} does not accept DSH ${desktop}`)
+  }
+  assert.equal(manifest.peerDependencies['@deepseek-ai/dsh-client-runtime'], undefined)
   assert.match(patch, /id:\s*kimi-subscription/u)
   assert.match(patch, /name:\s*['"]dsh-kimi-subscription['"]/u)
   assert.match(build, /window\.__ModuleLoader__\.load/u)
