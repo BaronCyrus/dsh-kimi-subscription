@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.13
+
+- The host now performs the Kimi device sign-in and token refresh itself instead of delegating to pi-ai's OAuth, which authenticates with the ambient `fetch`. Both requests ask for an identity-encoded body, and the response is additionally decoded by its magic number (gzip / zstd) when the `Content-Encoding` header did not survive the transport. A token response is about 1.5 KB, so it arrives compressed; a transport that hands back the still-compressed bytes used to turn a successful exchange into `device token request failed (status 200)`, which the settings page showed as「操作失败，请重试。」. This removes the plugin's last dependency on the host's response decoding.
+- A failed sign-in now carries the name of the step that failed — `denied`, `expired`, `exchange`, `response`, `network`, or `unreachable` — and the settings page renders it as a specific sentence in Chinese or English instead of one generic line. Provider output still never leaves the Host, because it can quote a token.
+- A refresh response that does not rotate the refresh token now keeps the previous one, as RFC 6749 allows, instead of failing the credential.
+- No live model calls or credential reads.
+
 ## 1.2.12
 
 - Replace the enumerated `@deepseek-ai/dsh-*` peer versions with the range `>=0.1.1-rc.2 <0.2.0-0`. The desktop app auto-updated from `0.1.7-rc.1` to `0.1.7-rc.2` and every enumerated peer stopped matching, so profile startup skipped the bundle and the Kimi models disappeared again with `no adapter registered`. A range keeps the plugin loading across the 0.1 line while still refusing `0.2.0` prereleases.

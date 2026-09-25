@@ -1,8 +1,10 @@
 import { kimiCodingProvider as createKimiCodingProvider } from '@earendil-works/pi-ai/providers/kimi-coding'
 
 import { DISPLAY_NAME, PROVIDER } from './constants.js'
+import { createKimiOAuth } from './kimi-oauth.js'
 
 export { createModels } from '@earendil-works/pi-ai'
+export { createKimiOAuth, KimiOAuthError, classifyKimiOAuthFailure } from './kimi-oauth.js'
 
 const AUTH_REJECTION = /\b401\b|invalid_authentication/iu
 
@@ -68,16 +70,25 @@ export function guardKimiStreamAuthRejection(stream, onAuthRejected) {
 }
 
 /**
- * Reuse pi-ai's Kimi Code protocol, catalog, OAuth flow, and auth refresh while
- * giving the DSH subscription route an identity distinct from kimi-coding API
- * configuration. API-key and OAuth auth are both subscription credentials;
- * ambient Kimi platform credentials are disabled by the plugin's auth context.
+ * Reuse pi-ai's Kimi Code protocol, catalog, and API-key resolution while
+ * giving the DSH subscription route an identity distinct from the generic
+ * kimi-coding route. API-key and OAuth auth are both subscription
+ * credentials; ambient Kimi platform credentials are disabled by the plugin's
+ * auth context.
+ *
+ * OAuth is this plugin's own implementation (`./kimi-oauth.js`): pi-ai's uses
+ * the ambient transport, which cannot be relied on to deliver an unencoded
+ * body while no credential exists yet.
  */
-export function createKimiSubscriptionProvider({ onAuthRejected } = {}) {
+export function createKimiSubscriptionProvider({ onAuthRejected, oauth, fetchImpl, oauthHost } = {}) {
   const base = createKimiCodingProvider()
   if (base.auth?.oauth === undefined || base.auth?.apiKey === undefined) {
     throw new Error('The installed pi-ai Kimi provider does not expose the required subscription authentication methods')
   }
+  const subscriptionOAuth = oauth ?? createKimiOAuth({
+    ...fetchImpl === undefined ? {} : { fetchImpl },
+    ...oauthHost === undefined ? {} : { oauthHost },
+  })
   const models = Object.freeze(base.getModels().map(model => Object.freeze({
     ...withK28PreviewMetadata(model),
     provider: PROVIDER,
@@ -89,7 +100,7 @@ export function createKimiSubscriptionProvider({ onAuthRejected } = {}) {
     headers: base.headers,
     auth: Object.freeze({
       apiKey: base.auth.apiKey,
-      oauth: base.auth.oauth,
+      oauth: subscriptionOAuth,
     }),
     getModels: () => models,
     stream: (model, context, options) => guardKimiStreamAuthRejection(base.stream(model, context, options), onAuthRejected),

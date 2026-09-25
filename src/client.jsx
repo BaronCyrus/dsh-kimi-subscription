@@ -9,6 +9,16 @@ export const inject = ['slots', 'locale', 'connection', 'modelDirectories']
 
 const NS = 'settings.kimiSubscription'
 const TERMINAL_PHASES = new Set(['authenticated', 'failed', 'cancelled'])
+// Host-classified login failures. The host never forwards provider text, so the
+// name of the failing step is the whole diagnostic the browser gets.
+const FAILURE_REASON_KEYS = Object.freeze({
+  denied: 'failedDenied',
+  expired: 'failedExpired',
+  exchange: 'failedExchange',
+  response: 'failedResponse',
+  network: 'failedNetwork',
+  unreachable: 'failedUnreachable',
+})
 const QUICK_USAGE_REFRESH_EVENT = 'dsh-kimi-subscription:refresh-quick-usage'
 const QUICK_USAGE_REFRESH_MS = 60_000
 
@@ -35,6 +45,12 @@ const zh = {
   logout: '断开连接',
   retry: '重试',
   failed: '操作失败，请重试。',
+  failedDenied: 'Kimi 拒绝了本次授权。请确认该账号的 Kimi Code 订阅有效，然后重试。',
+  failedExpired: '设备码已过期，请重新发起登录。',
+  failedExchange: 'Kimi 未能签发登录令牌，请稍后重试。',
+  failedResponse: 'Kimi 返回的登录响应不完整，请重试。',
+  failedNetwork: '无法连接 Kimi 授权服务，请检查网络或代理设置。',
+  failedUnreachable: 'Kimi 授权服务返回异常，请稍后重试。',
   loadFailed: '无法读取 Kimi 订阅状态。',
   readyHint: '现在可在模型选择器的 Kimi subscription 分组中选择订阅模型。',
   usageTitle: '订阅余量',
@@ -111,6 +127,12 @@ const en = {
   logout: 'Disconnect',
   retry: 'Retry',
   failed: 'The operation failed. Try again.',
+  failedDenied: 'Kimi denied this authorization. Check that the account has an active Kimi Code subscription, then retry.',
+  failedExpired: 'The device code expired. Start the sign-in again.',
+  failedExchange: 'Kimi did not issue a sign-in token. Try again shortly.',
+  failedResponse: 'Kimi returned an incomplete sign-in response. Try again.',
+  failedNetwork: 'Could not reach the Kimi authorization service. Check your network or proxy settings.',
+  failedUnreachable: 'The Kimi authorization service returned an error. Try again shortly.',
   loadFailed: 'Could not read Kimi subscription status.',
   readyHint: 'You can now select a subscription model from the Kimi subscription group.',
   usageTitle: 'Subscription usage',
@@ -540,6 +562,8 @@ function KimiSection({ rpc, t }) {
   const ready = account !== undefined
   const activeFlow = flow !== undefined && !TERMINAL_PHASES.has(flow.phase)
   const method = account?.method === 'oauth' ? t('methodOauth') : t('methodApiKey')
+  const failureKey = FAILURE_REASON_KEYS[flow?.reason]
+  const failureText = error ?? (failureKey === undefined ? t('failed') : t(failureKey))
 
   return <section className="kimiSubscription">
     <h2>{t('title')}</h2>
@@ -574,7 +598,7 @@ function KimiSection({ rpc, t }) {
         <div className="kimiSubscriptionActions"><Button type="button" variant="outline" disabled={busy} onClick={cancelLogin}>{t('cancel')}</Button></div>
       </div> : null}
       {!signedIn && flow?.phase === 'starting' ? <div className="kimiSubscriptionFlow"><p className="kimiSubscriptionHint">{t('waiting')}</p><div className="kimiSubscriptionActions"><Button type="button" variant="outline" disabled={busy} onClick={cancelLogin}>{t('cancel')}</Button></div></div> : null}
-      {flow?.phase === 'failed' || error !== undefined ? <p className="kimiSubscriptionError" role="alert">{error ?? t('failed')}</p> : null}
+      {flow?.phase === 'failed' || error !== undefined ? <p className="kimiSubscriptionError" role="alert">{failureText}</p> : null}
     </div>
     {signedIn ? <UsageCard call={call} t={t} /> : null}
     <SearchProviderCard call={call} t={t} />

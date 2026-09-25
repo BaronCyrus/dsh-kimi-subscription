@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import { PROVIDER } from './constants.js'
+import { classifyKimiOAuthFailure } from './kimi-oauth.js'
 
 const TERMINAL_PHASES = new Set(['authenticated', 'failed', 'cancelled'])
 const ALLOWED_AUTH_ORIGINS = new Set(['https://auth.kimi.com', 'https://www.kimi.com', 'https://kimi.com'])
@@ -125,12 +126,16 @@ export class KimiLoginCoordinator {
           }
           return
         }
+        const failureReason = classifyKimiOAuthFailure(error)
         session.view = {
           id,
           provider: PROVIDER,
           phase: 'failed',
           authenticated: false,
           error: 'Kimi login failed',
+          // A safe step name only. Provider output stays in hostError because it
+          // may quote a token.
+          ...failureReason === undefined ? {} : { reason: failureReason },
         }
         // Provider failures may include credentials. Keep diagnostics host-only.
         session.hostError = error

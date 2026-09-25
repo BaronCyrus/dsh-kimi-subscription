@@ -40,6 +40,28 @@ test('bundle contributes one host row and one DSH client module', async () => {
   assert.match(build, /window\.__ModuleLoader__\.load/u)
 })
 
+test('host owns its OAuth so no credential depends on transport decoding', async () => {
+  const [runtime, oauth] = await Promise.all([text('src/pi-ai-runtime.js'), text('src/kimi-oauth.js')])
+  // pi-ai's Kimi OAuth uses the ambient fetch, whose response encoding the host
+  // may not control; the plugin issues those two requests itself instead.
+  assert.match(runtime, /createKimiOAuth/u)
+  assert.doesNotMatch(runtime, /base\.auth\.oauth/u)
+  assert.match(oauth, /accept-encoding/u)
+  assert.match(oauth, /'identity'/u)
+  assert.match(oauth, /classifyKimiOAuthFailure/u)
+})
+
+test('client renders a localized reason for every classified sign-in failure', async () => {
+  const [client, oauth] = await Promise.all([text('src/client.jsx'), text('src/kimi-oauth.js')])
+  const reasons = [...oauth.matchAll(/'oauth\/[a-z-]+': '([a-z]+)'/gu)].map(match => match[1])
+  assert.ok(reasons.includes('denied'))
+  for (const reason of reasons) {
+    // An aborted sign-in is rendered as the cancelled phase, not as a failure.
+    if (reason === 'aborted') continue
+    assert.match(client, new RegExp(`${reason}: 'failed`, 'u'), `client has no copy for the ${reason} reason`)
+  }
+})
+
 test('client registers a removable settings section and never stores credentials', async () => {
   const source = await text('src/client.jsx')
   assert.match(source, /slots\.inject\(['"]settings\.section['"]/u)

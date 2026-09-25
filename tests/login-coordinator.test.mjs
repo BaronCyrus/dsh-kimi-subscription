@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import { assertKimiAuthUrl, createKimiRpcHandler, KimiLoginCoordinator } from '../src/login-coordinator.js'
 import { PROVIDER } from '../src/constants.js'
+import { KimiOAuthError } from '../src/kimi-oauth.js'
 
 test('only official Kimi HTTPS login links reach the browser', () => {
   assert.equal(
@@ -41,6 +42,44 @@ test('device login exposes only public state and scrubs provider failures', asyn
   const finished = await handler('login/status', { id: 'login-1' }, signal)
   assert.equal(finished.value.phase, 'failed')
   assert.doesNotMatch(JSON.stringify(finished), /access-secret|refresh-secret/u)
+})
+
+test('a classified sign-in failure reaches the browser as a step name only', async () => {
+  const auth = {
+    async status() { return { authenticated: false, provider: PROVIDER } },
+    async login(interaction) {
+      interaction.notify({
+        type: 'device_code',
+        userCode: 'ABCD-EFGH',
+        verificationUri: 'https://www.kimi.com/code/authorize_device',
+      })
+      throw new KimiOAuthError('oauth/denied', 'Kimi Code login was denied; access-secret')
+    },
+    async setApiKey() {},
+    async logout() {},
+  }
+  const coordinator = new KimiLoginCoordinator(auth, { createId: () => 'login-denied' })
+  const handler = createKimiRpcHandler(coordinator)
+  const signal = new AbortController().signal
+  await handler('login/start', {}, signal)
+  await new Promise(resolve => setImmediate(resolve))
+  const failed = await handler('login/status', { id: 'login-denied' }, signal)
+  assert.equal(failed.value.phase, 'failed')
+  assert.equal(failed.value.reason, 'denied')
+  assert.doesNotMatch(JSON.stringify(failed), /access-secret|was denied/u)
+})
+
+test('an unclassified sign-in failure still reports failure without a reason', async () => {
+  const auth = {
+    async status() { return { authenticated: false, provider: PROVIDER } },
+    async login() { throw new Error('plain provider failure') },
+    async setApiKey() {},
+    async logout() {},
+  }
+  const coordinator = new KimiLoginCoordinator(auth, { createId: () => 'login-plain' })
+  const started = await coordinator.start()
+  assert.equal(started.phase, 'failed')
+  assert.equal('reason' in started, false)
 })
 
 test('an active login start is idempotent and cancel settles immediately', async () => {
