@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.14
+
+- Explain a plan-gated model instead of letting it read as a credential failure. Kimi Code gates models by membership tier and answers a request for a model the plan does not include with HTTP 401; the host classifies any 401 as `AUTH` and its chat surface replaces the text with「API 密钥无效」, so a tier limit looked like a broken key. The stream guard now rewrites that terminal failure into an explicit sentence naming the model and suggesting `kimi-for-coding`. The replacement deliberately carries no status code and none of the words the host matches for quota, rate limits, timeouts, or transport faults, which also keeps the failure out of the `AUTH` retry policy that cannot help it.
+- Add the tier table and this failure mode to the README.
+- No behavior change for any other failure; no live model calls or credential reads.
+
 ## 1.2.13
 
 - The host now performs the Kimi device sign-in and token refresh itself instead of delegating to pi-ai's OAuth, which authenticates with the ambient `fetch`. Both requests ask for an identity-encoded body, and the response is additionally decoded by its magic number (gzip / zstd) when the `Content-Encoding` header did not survive the transport. A token response is about 1.5 KB, so it arrives compressed; a transport that hands back the still-compressed bytes used to turn a successful exchange into `device token request failed (status 200)`, which the settings page showed as「操作失败，请重试。」. This removes the plugin's last dependency on the host's response decoding.

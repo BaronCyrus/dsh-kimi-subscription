@@ -25,14 +25,14 @@
 命令行安装到 `web` profile：
 
 ```sh
-dsh plugin --profile web add dsh-kimi-subscription@1.2.13
+dsh plugin --profile web add dsh-kimi-subscription@1.2.14
 dsh plugin --profile web list dsh-kimi-subscription --depth 0
 ```
 
 也可以从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载对应版本的 `.tgz` 后安装：
 
 ```sh
-dsh plugin --profile web add ./dsh-kimi-subscription-1.2.13.tgz
+dsh plugin --profile web add ./dsh-kimi-subscription-1.2.14.tgz
 ```
 
 手动重启 DSH 后：
@@ -75,6 +75,28 @@ DSH 全局只有一个生效的搜索提供方槽位。本插件默认**不接�
 - `kimi-for-coding-highspeed`
 
 `kimi-for-coding` 已由 Kimi Code 原地升级为 **K2.8 Preview**（Model ID 不变，支持 1M 上下文与 `low` / `high` / `max` 思考档位，默认 `max`）。pi-ai 内置目录尚未跟进，插件会在本地修正该模型的名称、上下文窗口与思考档位映射；上游目录更新后该补丁可移除。
+
+### 档位限制：选到用不了的模型会报「API 密钥无效」
+
+Kimi Code 按会员档位放行模型（见[模型配置](https://www.kimi.com/code/docs/kimi-code/models.html#%E6%A8%A1%E5%9E%8B%E6%80%BB%E8%A7%88)）。**模型 ID 写对、但档位不够时，服务端返回 `401`**，而 DSH 客户端把所有 401 显示为「API 密钥无效」—— 这句提示具有误导性，密钥其实是好的。
+
+| 模型 | 新套餐 | 老套餐 |
+| --- | --- | --- |
+| `kimi-for-coding`（K2.8 Preview） | Plus 及以上 | Andante 及以上 |
+| `k3` / `k3-256k` | Plus 及以上 | Moderato 及以上 |
+| `k3` 的 1M 上下文 | Pro 及以上 | Allegretto 及以上 |
+| `kimi-for-coding-highspeed` | Pro 及以上 | Allegretto 及以上 |
+
+插件的模型列表直接来自 pi-ai 目录，**不按你的档位过滤**（Kimi 的 `/v1/models` 也不过滤），所以档位不够的模型也会出现在选择器里。`/v1/models` 与 `/v1/usages` 这类只读接口不做档位校验，因此它们会正常返回。
+
+自 1.2.14 起，插件会把这种拒绝改写成一句明确的说明再交给界面：
+
+```
+当前 Kimi Code 订阅档位不包含模型「k3」，请改用 kimi-for-coding（K2.8 Preview），
+或升级 Kimi Code 档位。这不是密钥或登录问题。 / Your Kimi Code plan does not include "k3"; …
+```
+
+改写后的文本刻意不含任何状态码与限额、超时、传输类关键词，因此宿主不会再把它归类成认证失败 —— 既不会显示成「API 密钥无效」，也不会对这种无法靠重试解决的失败重试两次。若你仍看到「API 密钥无效」，那才是真的凭据问题（可先在设置页确认登录状态）。
 
 ## Kimi Code 与 Open Platform
 
