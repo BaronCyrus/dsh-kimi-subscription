@@ -12,6 +12,7 @@ import {
   NPM_REGISTRY_LATEST_URL,
   PACKAGE_NAME,
   parseSemver,
+  resolvePnpm,
 } from '../src/plugin-version.js'
 
 const writeManifest = async (path, manifest) => {
@@ -151,7 +152,48 @@ test('linked checkouts are reported but never updated in place', async () => {
   await assert.rejects(() => manager.update(), /^Error: Kimi plugin is installed from a local checkout$/u)
 })
 
-test('update shells out to the dsh CLI with the owning profile and exact version', async () => {
+/**
+ * A fake desktop runtime, shaped like the real host process: `argv[1]` is the
+ * desktop host entry point (never the CLI), the runtime directory carrying the
+ * `dsh` package arrives as its own argument, and the bundled pnpm entry travels
+ * in the arguments too.
+ */
+async function desktopRuntime(root) {
+  const runtimeDir = join(root, 'resources', 'app.asar', 'dsh')
+  const hostEntry = join(runtimeDir, 'node_modules', '@deepseek-ai', 'dsh-desktop-host', 'lib', 'index.js')
+  const pnpm = join(root, 'resources', 'runtime', 'pnpm', 'bin', 'pnpm.mjs')
+  await writeManifest(join(runtimeDir, 'node_modules', '@deepseek-ai', 'dsh', 'package.json'), {
+    name: '@deepseek-ai/dsh',
+    version: '0.1.7-rc.2',
+  })
+  await writeManifest(hostEntry, { name: '@deepseek-ai/dsh-desktop-host', version: '0.1.7-rc.2' })
+  await writeManifest(pnpm, { name: 'pnpm', version: '11.7.0' })
+  return {
+    runtimeDir,
+    hostEntry,
+    pnpm,
+    argv: [
+      join(root, 'DeepSeek Harness'),
+      hostEntry,
+      runtimeDir,
+      join(root, 'profiles', 'desktop'),
+      join(root, 'resources', 'runtime', 'primary-runtime'),
+      pnpm,
+      join(root, 'resources', 'runtime', 'bin'),
+    ],
+  }
+}
+
+/** Land the requested version on disk so the post-install check can confirm it. */
+const installRecorder = async ({ args, cwd }) => {
+  await writeManifest(join(cwd, 'node_modules', PACKAGE_NAME, 'package.json'), {
+    name: PACKAGE_NAME,
+    version: args.at(-1).split('@').at(-1),
+  })
+  return { code: 0, stdout: '', stderr: '' }
+}
+
+test('update installs the exact version into the owning profile, pinned and age-free', async () => {
   const root = await mkdtemp(join(tmpdir(), 'kimi-version-update-'))
   const ownPackageJsonUrl = await npmInstall(root)
   const calls = []
@@ -160,23 +202,116 @@ test('update shells out to the dsh CLI with the owning profile and exact version
     env: { DSH_HOME: root },
     ownPackageJsonUrl,
     execPath: '/node',
-    binPath: '/dsh/bin.js',
+    argv: ['/node', '/dsh/bin.js'],
     fetchImpl: () => {
       registryRequests += 1
       return registryOk('0.4.0')(NPM_REGISTRY_LATEST_URL, {})
     },
-    runCommand: async argv => {
-      calls.push(argv)
-      return { code: 0, stdout: '', stderr: '' }
+    runCommand: async (call, options) => {
+      calls.push(call)
+      return installRecorder(call, options)
     },
   })
   const updated = await manager.update()
   assert.deepEqual(updated, { version: '0.4.0', profile: 'web' })
-  assert.deepEqual(calls, [[
-    '/node', '/dsh/bin.js', 'plugin', '--profile', 'web', 'add', `${PACKAGE_NAME}@0.4.0`,
-  ]])
+  assert.equal(calls[0].command, 'pnpm', 'without a bundled entry the pnpm name is the fallback')
+  assert.deepEqual(calls[0].args, [
+    'add', '--save-exact', '--config.minimumReleaseAge=0', `${PACKAGE_NAME}@0.4.0`,
+  ])
+  assert.equal(calls[0].cwd, join(root, 'profiles', 'web'))
   await manager.read()
   assert.equal(registryRequests, 2, 'a successful update invalidates the cached version')
+})
+
+test('desktop hosts install with the bundled pnpm, never by launching the desktop host again', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'kimi-version-desktop-'))
+  const ownPackageJsonUrl = await npmInstall(root, '1.2.14')
+  const runtime = await desktopRuntime(root)
+  assert.equal(resolvePnpm({ argv: runtime.argv, env: {} }), runtime.pnpm)
+  const calls = []
+  const manager = createKimiPluginManager({
+    env: { DSH_HOME: root },
+    ownPackageJsonUrl,
+    execPath: '/Applications/DeepSeek Harness',
+    argv: runtime.argv,
+    fetchImpl: registryOk('1.3.0'),
+    runCommand: async (call, options) => {
+      calls.push(call)
+      return installRecorder(call, options)
+    },
+  })
+  // npmInstall() writes profiles/web, so the owning profile is that one.
+  assert.deepEqual(await manager.update(), { version: '1.3.0', profile: 'web' })
+  const [call] = calls
+  assert.equal(call.command, '/Applications/DeepSeek Harness', 'the host executable is the Node runtime')
+  assert.deepEqual(call.args, [
+    runtime.pnpm, 'add', '--save-exact', '--config.minimumReleaseAge=0', `${PACKAGE_NAME}@1.3.0`,
+  ])
+  const flattened = JSON.stringify(call)
+  assert.equal(flattened.includes(runtime.hostEntry), false, 'the desktop host entry is never launched again')
+  assert.equal(flattened.includes('--expose-internals'), false, 'no launcher flag leaks into a script position')
+  assert.equal(flattened.includes('plugin'), false, 'the CLI that refuses the desktop profile is not used')
+})
+
+test('an update that installs nothing is a failure, not a reported success', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'kimi-version-verify-'))
+  const ownPackageJsonUrl = await npmInstall(root, '1.2.14')
+  const manager = createKimiPluginManager({
+    env: { DSH_HOME: root },
+    ownPackageJsonUrl,
+    fetchImpl: registryOk('1.3.0'),
+    settleDelayMs: 1,
+    runCommand: async () => ({ code: 0, stdout: '', stderr: '' }),
+  })
+  await assert.rejects(
+    () => manager.update(),
+    /^Error: Kimi plugin update did not install the requested version$/u,
+  )
+})
+
+test('the package-manager resolver trusts only real pnpm entries and owned runtime roots', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'kimi-version-resolve-'))
+  const runtime = await desktopRuntime(root)
+  const elsewhere = await mkdtemp(join(tmpdir(), 'kimi-version-resolve-other-'))
+  const otherPnpm = join(elsewhere, 'resources', 'pnpm', 'bin', 'pnpm.mjs')
+
+  assert.equal(
+    resolvePnpm({ argv: runtime.argv }),
+    runtime.pnpm,
+    'the bundled entry named in the host arguments wins',
+  )
+  assert.equal(
+    resolvePnpm({ argv: ['/node', '--expose-internals', '/dsh/bin.js'] }),
+    undefined,
+    'a flag is never a package-manager entry',
+  )
+  assert.equal(
+    resolvePnpm({ argv: ['/node', runtime.hostEntry] }),
+    undefined,
+    'the entry script is never treated as the package manager',
+  )
+  assert.equal(
+    resolvePnpm({ argv: ['/node', '/somewhere/pnpm-not-really'] }),
+    undefined,
+    'a name that merely contains pnpm is not the package manager',
+  )
+  assert.equal(
+    resolvePnpm({ argv: ['/node', join(root, 'missing', 'pnpm.mjs')] }),
+    undefined,
+    'a pnpm entry that does not exist is not used',
+  )
+
+  await writeManifest(otherPnpm, { name: 'pnpm', version: '11.7.0' })
+  const runtimeDir = join(elsewhere, 'resources', 'runtime')
+  await writeManifest(join(runtimeDir, 'node_modules', '@deepseek-ai', 'dsh', 'package.json'), {
+    name: '@deepseek-ai/dsh',
+    version: '0.1.7-rc.2',
+  })
+  assert.equal(
+    resolvePnpm({ argv: ['/node', join(elsewhere, 'index.js'), runtimeDir] }),
+    otherPnpm,
+    'a runtime directory carrying the dsh package locates the bundled pnpm',
+  )
 })
 
 test('update failures stay generic and unknown installs refuse to guess a profile', async () => {

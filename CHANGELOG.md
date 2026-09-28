@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.1 — 2026-09-28
+
+- Fix「更新插件」failing on the desktop app. The update action built its command from `process.argv[1]`, which is the entry script of whichever process loaded the plugin — the dsh CLI only when the host *is* the CLI. The desktop app loads plugins inside `@deepseek-ai/dsh-desktop-host`, so that argument was the desktop host entry, and the update re-launched the application with `plugin …` arguments instead of installing anything; the host read those arguments as a profile directory and exited non-zero, so every desktop update attempt failed while「检查更新」kept working.
+- The update no longer shells out to `dsh plugin`, which cannot serve the desktop app at all: `dsh plugin --profile desktop` is refused outright with `profile "desktop" is managed exclusively by the Electron application`. It now installs the exact published version into the owning profile with pnpm directly — the same package-manager step `dsh plugin add` performs for a registry spec — using the bundled pnpm entry the desktop host passes in its own arguments, matched by file name rather than by position. The runtime directory carrying the `@deepseek-ai/dsh` package is the fallback, and `PATH` never decides which package manager runs.
+- The install is pinned and age-free: `pnpm add --save-exact --config.minimumReleaseAge=0 <name>@<version>`. Without the override, pnpm ≥ 11 quietly keeps the installed version when the target was published less than 24 hours ago — exactly the releases this button exists to install — and with `minimumReleaseAgeStrict: true` that skip becomes a hard failure.
+- A zero exit is no longer reported as a successful update on its own. The installed `node_modules/<name>/package.json` is read back and must equal the requested version before the settings page says「已更新」, so a command that installed nothing now fails instead of silently claiming success.
+- Verified against the real desktop runtime (`@deepseek-ai/dsh-desktop-host`, DSH `0.1.7-rc.2`, bundled pnpm `11.7.0`) using the shipped bundle and the live host's own launch arguments: the bundled pnpm entry is selected, and `update()` installs the target version into a scratch profile and rewrites its `package.json` dependency while keeping the `dsh.profile.bundles` entry. No live model calls and no credential reads.
+- The sibling `dsh-grok-subscription` plugin carries the same `process.argv[1]` pattern through the same code lineage; it is not changed here.
+
 ## 1.3.0 — 2026-09-28
 
 - Add the original Moonlight Coder mascot and reorganize the project homepage around features, installation, daily use, screenshots, and maintenance.

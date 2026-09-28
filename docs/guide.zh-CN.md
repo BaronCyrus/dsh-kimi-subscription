@@ -18,13 +18,13 @@ dsh plugin --profile web list dsh-kimi-subscription --depth 0
 需要可重复安装时可固定已发布版本，例如：
 
 ```sh
-dsh plugin --profile web add dsh-kimi-subscription@1.3.0
+dsh plugin --profile web add dsh-kimi-subscription@1.3.1
 ```
 
 从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载 `.tgz` 后，也可将其路径交给同一安装命令。例如已下载对应文件时：
 
 ```sh
-dsh plugin --profile web add ./dsh-kimi-subscription-1.3.0.tgz
+dsh plugin --profile web add ./dsh-kimi-subscription-1.3.1.tgz
 ```
 
 使用 `npx` 启动 DSH 时，安装插件也要保留相同的完整前缀；没有全局 `dsh` 命令并不代表插件有故障。以下是具有仓库兼容记录的版本示例，不是要求切换你的安装版本：
@@ -93,6 +93,15 @@ DSH 同一运行环境中只有一个生效的全局搜索提供方槽位；选�
 ## 更新与清理
 
 npm 安装可从设置页更新，或运行 `dsh plugin --profile web add dsh-kimi-subscription@latest`。本地 `link:` 安装应拉取对应 checkout、测试并构建；Release `.tgz` 安装应重新安装你选定的包。更新后手动重启目标 DSH。
+
+桌面版的 `desktop` profile 由 Electron 应用独占，`dsh plugin --profile desktop …` 会被直接拒绝（`profile "desktop" is managed exclusively by the Electron application`），所以桌面版要由插件自己更新。1.3.1 起「更新插件」会在该 profile 目录中用 DSH 自带的 pnpm 安装精确版本；若你仍停留在旧版本并且按钮报错，可在终端手动执行（pnpm 需 ≥ 11）：
+
+```sh
+cd "$HOME/.dsh/profiles/desktop"    # Windows: cd "$env:USERPROFILE\.dsh\profiles\desktop"
+pnpm add --save-exact dsh-kimi-subscription@1.3.1
+```
+
+然后完全退出并重启桌面版。更新成功后该 profile 的 `package.json` 里依赖应变为目标版本，`dsh.profile.bundles` 条目保持不变。
 
 卸载前，建议先将网页搜索切回「不接管」，再运行：
 

@@ -18,13 +18,13 @@ dsh plugin --profile web list dsh-kimi-subscription --depth 0
 For reproducibility, pin a published version, for example:
 
 ```sh
-dsh plugin --profile web add dsh-kimi-subscription@1.3.0
+dsh plugin --profile web add dsh-kimi-subscription@1.3.1
 ```
 
 A `.tgz` downloaded from [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) can use the same install command. With the matching file already downloaded:
 
 ```sh
-dsh plugin --profile web add ./dsh-kimi-subscription-1.3.0.tgz
+dsh plugin --profile web add ./dsh-kimi-subscription-1.3.1.tgz
 ```
 
 When DSH is launched with `npx`, keep the same complete prefix for plugin operations. A missing global `dsh` command is not a plugin failure. This example uses a version with a recorded compatibility check; it is not an instruction to switch your installed DSH version:
@@ -93,6 +93,15 @@ The intended composed route sends Kimi models to Kimi search, Codex models to th
 ## Updates and cleanup
 
 For npm installs, update in Settings or run `dsh plugin --profile web add dsh-kimi-subscription@latest`. For local `link:` installs, pull, test, and rebuild the checkout. For release archives, install the selected `.tgz` again. Restart the target DSH instance afterwards.
+
+The desktop app owns its `desktop` profile exclusively: `dsh plugin --profile desktop …` is refused with `profile "desktop" is managed exclusively by the Electron application`, so the plugin performs that update itself. From 1.3.1 the **Update plugin** button installs the exact version into that profile with DSH's bundled pnpm. On an older version whose button fails, run this manually (pnpm ≥ 11):
+
+```sh
+cd "$HOME/.dsh/profiles/desktop"    # Windows: cd "$env:USERPROFILE\.dsh\profiles\desktop"
+pnpm add --save-exact dsh-kimi-subscription@1.3.1
+```
+
+Then quit the desktop app completely and start it again. A successful update shows the target version in that profile's `package.json` while its `dsh.profile.bundles` entry stays unchanged.
 
 Before removal, switch search to **Do not take over**, then run:
 

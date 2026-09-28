@@ -113,6 +113,8 @@ dsh plugin --profile web add dsh-kimi-subscription@latest
 
 本地 `link:` 开发安装应在对应仓库拉取代码、测试并重新构建，不要用上述命令替换开发链接。
 
+桌面版由 Electron 应用独占 `desktop` profile，`dsh plugin --profile desktop …` 会被拒绝，因此桌面版的「更新插件」由插件自己在该 profile 目录中用 DSH 自带的 pnpm 安装精确版本；失败时的手动步骤见[更新与清理](docs/guide.zh-CN.md#更新与清理)。
+
 **卸载：** 若启用过 Kimi 搜索，先在设置页切回「不接管」，再运行：
 
 ```sh

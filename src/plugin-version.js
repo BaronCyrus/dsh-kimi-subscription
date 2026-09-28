@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { readdir, readFile, realpath } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -11,6 +12,9 @@ export const NPM_REGISTRY_LATEST_URL = `https://registry.npmjs.org/${PACKAGE_NAM
 export const DEFAULT_VERSION_TTL_MS = 5 * 60_000
 export const DEFAULT_VERSION_TIMEOUT_MS = 10_000
 export const DEFAULT_UPDATE_TIMEOUT_MS = 180_000
+export const DEFAULT_SETTLE_DELAY_MS = 250
+/** Zero minutes: install the exact requested version regardless of its age. */
+export const UPDATE_RELEASE_AGE_MINUTES = 0
 
 const clone = value => structuredClone(value)
 
@@ -38,8 +42,9 @@ export function compareSemver(a, b) {
 
 /**
  * Classify how the running package reached the profile. Only registry specs
- * may be updated in place through `dsh plugin add <name>@<version>`; local
- * checkouts (`link:`/`file:`) belong to the owner's iteration workflow.
+ * may be updated in place by installing the exact published version into the
+ * profile; local checkouts (`link:`/`file:`) belong to the owner's iteration
+ * workflow.
  */
 function classifySpec(spec) {
   if (typeof spec !== 'string' || spec === '') return 'unknown'
@@ -55,6 +60,22 @@ const readManifest = async path => {
   } catch {
     return undefined
   }
+}
+
+/**
+ * Confirm the version that actually landed in the profile before reporting
+ * success. A zero exit only proves the command ran: pnpm's release-age policy
+ * can keep the installed version while still exiting zero, and a launcher that
+ * starts something else entirely also exits zero. Reading the manifest back is
+ * what makes the answer true.
+ */
+async function confirmInstalled({ profileDir, expected, settleDelayMs, attempts = 3 }) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const installed = (await readManifest(join(profileDir, 'node_modules', PACKAGE_NAME, 'package.json')))?.version
+    if (installed === expected) return
+    if (attempt < attempts) await new Promise(resolve => { setTimeout(resolve, settleDelayMs) })
+  }
+  throw new Error('Kimi plugin update did not install the requested version')
 }
 
 /**
@@ -95,8 +116,64 @@ export async function findInstall({ dshHome, ownPackageJsonUrl }) {
   return { kind: 'unknown' }
 }
 
-/** Run the dsh CLI host-side; output stays host-side and is never returned. */
-function spawnRunCommand(argv, { signal, timeoutMs }) {
+/** Whether a value is a path that exists; a flag is never a launcher. */
+const isExistingPath = value => typeof value === 'string' && value !== '' && existsSync(value)
+
+/**
+ * Anything that mentions `pnpm` as a program, e.g. `…/runtime/pnpm/bin/pnpm.mjs`.
+ * The match is anchored to the file name so no profile or plugin directory
+ * that merely contains the word can be mistaken for the package manager.
+ */
+const PNPM_SCRIPT = /[\\/]pnpm\.(?:mjs|cjs|js)$/u
+
+/** The runtime root of a DSH install, recognised by the `dsh` package it carries. */
+const dshRuntimeRoot = value => (isExistingPath(value)
+  && existsSync(join(value, 'node_modules', '@deepseek-ai', 'dsh', 'package.json'))
+  ? value
+  : undefined)
+
+/**
+ * Locate the package manager that owns this profile.
+ *
+ * The update installs into the profile with pnpm directly rather than through
+ * `dsh plugin --profile desktop`, because that CLI command refuses the desktop
+ * profile outright ("managed exclusively by the Electron application"). The
+ * desktop app hands the bundled pnpm to its host process in the host's own
+ * arguments, so pnpm is found by inspecting those arguments — entry names
+ * first, and otherwise the runtime directory that carries the `dsh` package —
+ * which keeps `PATH` from deciding which package manager runs. Nothing is
+ * guessed from the entry script, so this stays correct whether the host is the
+ * CLI or the desktop runtime.
+ */
+export function resolvePnpm({ argv } = {}) {
+  const entries = Array.isArray(argv) ? argv : []
+  for (const entry of entries) {
+    if (isExistingPath(entry) && PNPM_SCRIPT.test(entry)) return entry
+  }
+  for (const entry of entries) {
+    const root = dshRuntimeRoot(entry)
+    if (root === undefined) continue
+    // The bundled runtime keeps pnpm beside the runtime the profile boots from.
+    const script = join(root, '..', 'pnpm', 'bin', 'pnpm.mjs')
+    if (existsSync(script)) return script
+  }
+  return undefined
+}
+
+/**
+ * How to install: the host's own Node executable running the resolved pnpm
+ * entry, which keeps the command independent of `PATH` and of the `pnpm` shim
+ * that `spawn` cannot start on Windows without a shell. Without a bundled
+ * entry the `pnpm` name is the last resort.
+ */
+function resolveLauncher({ argv, execPath }) {
+  const pnpm = resolvePnpm({ argv })
+  if (pnpm === undefined) return { command: 'pnpm', prefix: [] }
+  return { command: execPath, prefix: [pnpm] }
+}
+
+/** Run pnpm host-side; output stays host-side and is never returned. */
+function spawnRunCommand({ command, args, cwd }, { signal, timeoutMs }) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
       reject(signal.reason instanceof Error ? signal.reason : new Error('Kimi plugin update aborted'))
@@ -116,7 +193,11 @@ function spawnRunCommand(argv, { signal, timeoutMs }) {
     }
     let child
     try {
-      child = spawn(argv[0], argv.slice(1), { stdio: ['ignore', 'pipe', 'pipe'], signal: controller.signal })
+      child = spawn(command, args, {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        signal: controller.signal,
+        ...(cwd === undefined ? {} : { cwd }),
+      })
     } catch (error) {
       settle(reject, error)
       return
@@ -140,15 +221,15 @@ function spawnRunCommand(argv, { signal, timeoutMs }) {
 /**
  * Owns the plugin's version self-knowledge: the running version from its own
  * package.json, the latest npm registry version, which DSH profile installed
- * it, and registry-spec updates executed through the `dsh plugin` CLI.
- * Registry responses and CLI output stay host-only; only the small owned
+ * it, and registry-spec updates executed against that profile. Registry
+ * responses and package-manager output stay host-only; only the small owned
  * projection crosses RPC.
  */
 export function createKimiPluginManager({
   fetchImpl = ambientFetch,
   runCommand = spawnRunCommand,
   execPath = process.execPath,
-  binPath = process.argv[1],
+  argv = process.argv,
   env = process.env,
   ownPackageJsonUrl = new URL('../package.json', import.meta.url),
   registryUrl = NPM_REGISTRY_LATEST_URL,
@@ -156,10 +237,12 @@ export function createKimiPluginManager({
   ttlMs = DEFAULT_VERSION_TTL_MS,
   timeoutMs = DEFAULT_VERSION_TIMEOUT_MS,
   updateTimeoutMs = DEFAULT_UPDATE_TIMEOUT_MS,
+  settleDelayMs = DEFAULT_SETTLE_DELAY_MS,
 } = {}) {
   if (typeof fetchImpl !== 'function') throw new Error('Kimi plugin manager requires fetch')
   if (typeof runCommand !== 'function') throw new Error('Kimi plugin manager requires runCommand')
   const dshHome = typeof env.DSH_HOME === 'string' && env.DSH_HOME !== '' ? env.DSH_HOME : join(homedir(), '.dsh')
+  const launcher = resolveLauncher({ argv, execPath })
   let cached
   let inFlight
   let generation = 0
@@ -246,17 +329,28 @@ export function createKimiPluginManager({
           throw new Error('Kimi plugin update could not find the owning profile')
         }
         const latest = await fetchLatest(signal)
-        const argv = binPath === undefined
-          ? ['dsh', 'plugin', '--profile', install.profile, 'add', `${PACKAGE_NAME}@${latest}`]
-          : [execPath, binPath, 'plugin', '--profile', install.profile, 'add', `${PACKAGE_NAME}@${latest}`]
+        const profileDir = join(dshHome, 'profiles', install.profile)
         let result
         try {
-          result = await runCommand(argv, { signal, timeoutMs: updateTimeoutMs })
+          result = await runCommand({
+            command: launcher.command,
+            // `pnpm add <exact version>` is what `dsh plugin add` performs for a
+            // registry spec. `--save-exact` keeps the profile dependency pinned,
+            // and the release-age override stops a just-published version from
+            // being skipped as too new (pnpm ≥ 10.16; unknown keys are ignored).
+            args: [
+              ...launcher.prefix,
+              'add', '--save-exact', `--config.minimumReleaseAge=${UPDATE_RELEASE_AGE_MINUTES}`,
+              `${PACKAGE_NAME}@${latest}`,
+            ],
+            cwd: profileDir,
+          }, { signal, timeoutMs: updateTimeoutMs })
         } catch (error) {
           if (signal?.aborted) throw error
           throw new Error('Kimi plugin update failed')
         }
         if (result.code !== 0) throw new Error('Kimi plugin update failed')
+        await confirmInstalled({ profileDir, expected: latest, settleDelayMs })
         generation += 1
         cached = undefined
         return { version: latest, profile: install.profile }

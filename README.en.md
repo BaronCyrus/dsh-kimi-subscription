@@ -111,6 +111,8 @@ dsh plugin --profile web add dsh-kimi-subscription@latest
 
 For a local `link:` development install, pull, test, and rebuild its checkout instead. Do not replace the development link with the npm command above.
 
+The desktop app owns its `desktop` profile exclusively and refuses `dsh plugin --profile desktop …`, so the desktop **Update plugin** button installs the exact version into that profile with DSH's bundled pnpm. Manual recovery steps are in [Updates and cleanup](docs/guide.en.md#updates-and-cleanup).
+
 **Uninstall:** if Kimi search was enabled, first switch it to **Do not take over**, then run:
 
 ```sh
