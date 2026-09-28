@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/assets/dsh-kimi-mascot.png" width="220" height="220" alt="DSH Kimi Subscription 吉祥物：月牙工程师">
+
 # DSH Kimi Subscription
 
 **在 DeepSeek Harness 中直接使用 Kimi Code 会员订阅**
