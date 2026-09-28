@@ -70,7 +70,7 @@ dsh plugin --profile web list dsh-kimi-subscription --depth 0
 只有通过 `npx` 运行 DSH、没有全局 `dsh` 命令时，需要保留完整的启动前缀。以下使用仓库已有兼容记录的 DSH 版本作为示例：
 
 ```sh
-npx -y @deepseek-ai/dsh@0.1.7-rc.2 plugin --profile web add dsh-kimi-subscription@latest
+npx -y @deepseek-ai/dsh@0.2.0-rc.1 plugin --profile web add dsh-kimi-subscription@latest
 ```
 
 固定版本安装、Release 包安装和桌面应用的区别见 [安装与兼容性](docs/guide.zh-CN.md#安装与兼容性)。不要通过 CLI 修改由桌面应用管理的 `desktop` profile。

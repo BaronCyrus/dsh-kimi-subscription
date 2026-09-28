@@ -6,7 +6,7 @@
 
 ## 安装与兼容性
 
-本仓库的 DSH peer 声明为 `>=0.1.1-rc.2 <0.2.0-0`；已记录的验证版本、依赖版本与验证范围见 [compatibility.json](../compatibility.json) 和 [package.json](../package.json)。兼容范围不代表其中每个版本都经过完整 GUI、登录和真实模型调用验证。
+本仓库的 DSH peer 声明为 `>=0.1.1-rc.2 <0.3.0-0`；已记录的验证版本、依赖版本与验证范围见 [compatibility.json](../compatibility.json) 和 [package.json](../package.json)。兼容范围不代表其中每个版本都经过完整 GUI、登录和真实模型调用验证。
 
 **Web profile：**
 
@@ -18,20 +18,20 @@ dsh plugin --profile web list dsh-kimi-subscription --depth 0
 需要可重复安装时可固定已发布版本，例如：
 
 ```sh
-dsh plugin --profile web add dsh-kimi-subscription@1.3.1
+dsh plugin --profile web add dsh-kimi-subscription@1.3.2
 ```
 
 从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载 `.tgz` 后，也可将其路径交给同一安装命令。例如已下载对应文件时：
 
 ```sh
-dsh plugin --profile web add ./dsh-kimi-subscription-1.3.1.tgz
+dsh plugin --profile web add ./dsh-kimi-subscription-1.3.2.tgz
 ```
 
 使用 `npx` 启动 DSH 时，安装插件也要保留相同的完整前缀；没有全局 `dsh` 命令并不代表插件有故障。以下是具有仓库兼容记录的版本示例，不是要求切换你的安装版本：
 
 ```sh
-npx -y @deepseek-ai/dsh@0.1.7-rc.2 plugin --profile web add dsh-kimi-subscription@latest
-npx -y @deepseek-ai/dsh@0.1.7-rc.2 plugin --profile web list dsh-kimi-subscription --depth 0
+npx -y @deepseek-ai/dsh@0.2.0-rc.1 plugin --profile web add dsh-kimi-subscription@latest
+npx -y @deepseek-ai/dsh@0.2.0-rc.1 plugin --profile web list dsh-kimi-subscription --depth 0
 ```
 
 **桌面应用：** `desktop` profile 由桌面应用管理，请通过它的插件安装入口操作，不要使用上述 CLI 命令修改 `desktop`。
@@ -98,7 +98,7 @@ npm 安装可从设置页更新，或运行 `dsh plugin --profile web add dsh-ki
 
 ```sh
 cd "$HOME/.dsh/profiles/desktop"    # Windows: cd "$env:USERPROFILE\.dsh\profiles\desktop"
-pnpm add --save-exact dsh-kimi-subscription@1.3.1
+pnpm add --save-exact dsh-kimi-subscription@1.3.2
 ```
 
 然后完全退出并重启桌面版。更新成功后该 profile 的 `package.json` 里依赖应变为目标版本，`dsh.profile.bundles` 条目保持不变。

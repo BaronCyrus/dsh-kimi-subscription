@@ -68,7 +68,7 @@ dsh plugin --profile web list dsh-kimi-subscription --depth 0
 When you run DSH through `npx` without a global `dsh` command, retain the complete launcher prefix. This example uses a DSH version with a compatibility record in the repository:
 
 ```sh
-npx -y @deepseek-ai/dsh@0.1.7-rc.2 plugin --profile web add dsh-kimi-subscription@latest
+npx -y @deepseek-ai/dsh@0.2.0-rc.1 plugin --profile web add dsh-kimi-subscription@latest
 ```
 
 For pinned releases, local release archives, and desktop installation, see [Installation and compatibility](docs/guide.en.md#installation-and-compatibility). Do not modify the desktop application's managed `desktop` profile through the CLI.

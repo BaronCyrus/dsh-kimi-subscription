@@ -29,11 +29,27 @@ test('bundle contributes one host row and one DSH client module', async () => {
   // @deepseek-ai/dsh-* peer satisfies the running runtime, prereleases included.
   // A literal enumeration that names only already-released versions silently
   // drops the plugin on the next host bump, which is why these ranges must span
-  // the whole 0.1 line rather than list the versions seen so far.
+  // whole minor lines rather than list the versions seen so far. The 0.1-only
+  // upper bound did exactly that when the desktop app moved to 0.2.0-rc.1: the
+  // gate disabled the entire bundle. Keep the declared range, the recorded
+  // acceptance range, and the versions proven to mount in step.
   assert.deepEqual(incompatiblePeers(manifest, '0.1.7-rc.2'), [])
   assert.deepEqual(incompatiblePeers(manifest, '0.1.5-alpha.2'), [])
   assert.deepEqual(incompatiblePeers(manifest, '0.1.1-rc.2'), [])
-  assert.notDeepEqual(incompatiblePeers(manifest, '0.2.0-rc.1'), [])
+  assert.deepEqual(incompatiblePeers(manifest, '0.2.0-rc.1'), [])
+  // The next line is still refused, so the range is a claim about the 0.2 line
+  // rather than an unbounded "any future host" promise.
+  assert.notDeepEqual(incompatiblePeers(manifest, '0.3.0-rc.1'), [])
+  const compatibility = JSON.parse(await text('compatibility.json'))
+  // One range governs every host peer, and the recorded acceptance range must
+  // name it, so the metadata cannot drift away from what the gate reads.
+  for (const peerRange of Object.entries(manifest.peerDependencies)
+    .filter(([name]) => name.startsWith('@deepseek-ai/dsh-'))
+    .map(([, range]) => range)) {
+    assert.equal(peerRange, compatibility.acceptedRuntimeRange)
+  }
+  assert.ok(compatibility.supported.includes(compatibility.latestTested))
+  assert.ok(semver.satisfies(compatibility.latestTested, compatibility.acceptedRuntimeRange, { includePrerelease: true }))
   assert.equal(manifest.peerDependencies['@deepseek-ai/dsh-client-runtime'], undefined)
   assert.match(patch, /id:\s*kimi-subscription/u)
   assert.match(patch, /name:\s*['"]dsh-kimi-subscription['"]/u)

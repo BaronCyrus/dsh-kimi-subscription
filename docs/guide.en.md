@@ -6,7 +6,7 @@ This guide expands installation, access, search, and troubleshooting details. St
 
 ## Installation and compatibility
 
-The repository declares a DSH peer range of `>=0.1.1-rc.2 <0.2.0-0`. Recorded versions, dependencies, and validation scope are in [compatibility.json](../compatibility.json) and [package.json](../package.json). A declared range does not mean every version has passed complete GUI, sign-in, and live-model checks.
+The repository declares a DSH peer range of `>=0.1.1-rc.2 <0.3.0-0`. Recorded versions, dependencies, and validation scope are in [compatibility.json](../compatibility.json) and [package.json](../package.json). A declared range does not mean every version has passed complete GUI, sign-in, and live-model checks.
 
 **Web profile:**
 
@@ -18,20 +18,20 @@ dsh plugin --profile web list dsh-kimi-subscription --depth 0
 For reproducibility, pin a published version, for example:
 
 ```sh
-dsh plugin --profile web add dsh-kimi-subscription@1.3.1
+dsh plugin --profile web add dsh-kimi-subscription@1.3.2
 ```
 
 A `.tgz` downloaded from [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) can use the same install command. With the matching file already downloaded:
 
 ```sh
-dsh plugin --profile web add ./dsh-kimi-subscription-1.3.1.tgz
+dsh plugin --profile web add ./dsh-kimi-subscription-1.3.2.tgz
 ```
 
 When DSH is launched with `npx`, keep the same complete prefix for plugin operations. A missing global `dsh` command is not a plugin failure. This example uses a version with a recorded compatibility check; it is not an instruction to switch your installed DSH version:
 
 ```sh
-npx -y @deepseek-ai/dsh@0.1.7-rc.2 plugin --profile web add dsh-kimi-subscription@latest
-npx -y @deepseek-ai/dsh@0.1.7-rc.2 plugin --profile web list dsh-kimi-subscription --depth 0
+npx -y @deepseek-ai/dsh@0.2.0-rc.1 plugin --profile web add dsh-kimi-subscription@latest
+npx -y @deepseek-ai/dsh@0.2.0-rc.1 plugin --profile web list dsh-kimi-subscription --depth 0
 ```
 
 **Desktop application:** the application manages its own `desktop` profile. Use its plugin installation UI rather than modifying `desktop` through these CLI commands.
@@ -98,7 +98,7 @@ The desktop app owns its `desktop` profile exclusively: `dsh plugin --profile de
 
 ```sh
 cd "$HOME/.dsh/profiles/desktop"    # Windows: cd "$env:USERPROFILE\.dsh\profiles\desktop"
-pnpm add --save-exact dsh-kimi-subscription@1.3.1
+pnpm add --save-exact dsh-kimi-subscription@1.3.2
 ```
 
 Then quit the desktop app completely and start it again. A successful update shows the target version in that profile's `package.json` while its `dsh.profile.bundles` entry stays unchanged.

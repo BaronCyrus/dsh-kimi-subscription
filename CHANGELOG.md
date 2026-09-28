@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.2 — 2026-09-28
+
+- Fix the plugin being disabled outright after the desktop app updated to DeepSeek Harness `0.2.0-rc.1`. Every `@deepseek-ai/dsh-*` peer still stopped at `<0.2.0-0`, so the host's compatibility preflight refused the whole bundle and printed `skipping profile bundle "dsh-kimi-subscription": Error: Plugin dsh-kimi-subscription@1.3.1 is incompatible with dsh 0.2.0-rc.1: peerDependencies {...}`. The row never mounted, so the Kimi models and the settings page both disappeared. The condition was reproduced against a scratch profile on the real desktop runtime before and after the change.
+- Widen the declared host peer range to `>=0.1.1-rc.2 <0.3.0-0`, spanning the whole 0.2 line instead of stopping at 0.1. `0.3.0` is still refused, so this stays a claim about a tested line rather than an unbounded promise about any future host. `1.2.14` made the same call for the 0.1 line after an enumerated list broke on a host bump; the 0.1-only upper bound then broke on the next minor line.
+- The development baseline, the recorded compatibility data, and the entire offline test suite now target the published `0.2.0-rc.1` host packages, the versions the current desktop app actually carries.
+- Accept `@earendil-works/pi-ai` `0.86.0`, `0.86.1`, `0.87.0`, and `0.87.1` in the peer range, and build and test against `0.87.1`. DSH `0.2.0-rc.1` itself depends on `^0.85.1`, so a profile install can resolve any of these and the plugin imports this package directly. `kimiCodingProvider`, the `./providers/*` entry point, and the root `createModels` export are unchanged across `0.85.1` → `0.87.1`.
+- `tests/package-contract.test.mjs` now requires every declared host peer range to equal `compatibility.json`'s `acceptedRuntimeRange`, and requires the latest recorded version to be listed as supported and to satisfy that range, so the metadata the gate reads cannot drift from the manifest again.
+- No model-routing, authentication, search, quota, or client-UI behavior changes; no source-file changes. No live model calls and no credential reads.
+
 ## 1.3.1 — 2026-09-28
 
 - Fix「更新插件」failing on the desktop app. The update action built its command from `process.argv[1]`, which is the entry script of whichever process loaded the plugin — the dsh CLI only when the host *is* the CLI. The desktop app loads plugins inside `@deepseek-ai/dsh-desktop-host`, so that argument was the desktop host entry, and the update re-launched the application with `plugin …` arguments instead of installing anything; the host read those arguments as a profile directory and exited non-zero, so every desktop update attempt failed while「检查更新」kept working.
