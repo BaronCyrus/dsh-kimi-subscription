@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.3 — 2026-09-28
+
+- Document the desktop application as the only supported installation target, and drop the web-profile instructions from both READMEs and both guides. The plugin itself is unchanged and still loads on any conforming DSH profile; what changes is what this project tells users to do.
+- Install instructions now describe the desktop application's own **Plugins** page: **Add plugin**, enter `dsh-kimi-subscription` as the package name, pick the official source, then **Install**. The same field accepts a GitHub repository address, an absolute local plugin directory, and a version-qualified name such as `dsh-kimi-subscription@1.3.3`. This replaces the previous `dsh plugin --profile web add …` commands.
+- Update and uninstall instructions now lead with **Settings → Kimi subscription → Update plugin** and the Plugins page's **Uninstall**, which is what the desktop application actually exposes. The manual `pnpm add --save-exact …` recovery step for older versions is kept, because `dsh plugin --profile desktop …` is still refused by the CLI with `profile "desktop" is managed exclusively by the Electron application`.
+- `dsh plugin --profile <name> …` is documented as a non-desktop-profile path only, so it is not lost for anyone running a scratch profile.
+- No source, peer-range, compatibility, authentication, search, or quota behavior changes. No live model calls and no credential reads.
+
 ## 1.3.2 — 2026-09-28
 
 - Fix the plugin being disabled outright after the desktop app updated to DeepSeek Harness `0.2.0-rc.1`. Every `@deepseek-ai/dsh-*` peer still stopped at `<0.2.0-0`, so the host's compatibility preflight refused the whole bundle and printed `skipping profile bundle "dsh-kimi-subscription": Error: Plugin dsh-kimi-subscription@1.3.1 is incompatible with dsh 0.2.0-rc.1: peerDependencies {...}`. The row never mounted, so the Kimi models and the settings page both disappeared. The condition was reproduced against a scratch profile on the real desktop runtime before and after the change.

@@ -8,35 +8,23 @@ This guide expands installation, access, search, and troubleshooting details. St
 
 The repository declares a DSH peer range of `>=0.1.1-rc.2 <0.3.0-0`. Recorded versions, dependencies, and validation scope are in [compatibility.json](../compatibility.json) and [package.json](../package.json). A declared range does not mean every version has passed complete GUI, sign-in, and live-model checks.
 
-**Web profile:**
+**Desktop application (the only supported way):** open the app's **Plugins** page, click **Add plugin**, enter `dsh-kimi-subscription` as the **package name or address**, choose the **official** install source, then click **Install**. The same field also accepts a GitHub repository address or an absolute path to a local plugin directory.
 
-```sh
-dsh plugin --profile web add dsh-kimi-subscription@latest
-dsh plugin --profile web list dsh-kimi-subscription --depth 0
+**Manually restart the desktop application afterwards**; the app itself reports that changes take effect on the next launch.
+
+For a reproducible install, add the version in that same field (substitute the version you want):
+
+```text
+dsh-kimi-subscription@1.3.3
 ```
 
-For reproducibility, pin a published version, for example:
+A `dsh-kimi-subscription-1.3.3.tgz` downloaded from [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) can be installed from its absolute path instead, which suits offline or audited setups.
 
-```sh
-dsh plugin --profile web add dsh-kimi-subscription@1.3.2
-```
+**Other profiles (for example a scratch profile):** `dsh plugin --profile <name> add dsh-kimi-subscription@latest` still works for non-desktop profiles. Do **not** use it for `desktop`: the CLI refuses it outright (`profile "desktop" is managed exclusively by the Electron application`). Use the Plugins page above instead.
 
-A `.tgz` downloaded from [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) can use the same install command. With the matching file already downloaded:
+The Plugins page lists only the profiles that exist in this deployment. If it reports that there is no manageable profile, the profile is not ready yet and should be initialized in the desktop application first. Before sharing diagnostics, check for and hide personal paths and sensitive configuration; never publish a whole config.
 
-```sh
-dsh plugin --profile web add ./dsh-kimi-subscription-1.3.2.tgz
-```
-
-When DSH is launched with `npx`, keep the same complete prefix for plugin operations. A missing global `dsh` command is not a plugin failure. This example uses a version with a recorded compatibility check; it is not an instruction to switch your installed DSH version:
-
-```sh
-npx -y @deepseek-ai/dsh@0.2.0-rc.1 plugin --profile web add dsh-kimi-subscription@latest
-npx -y @deepseek-ai/dsh@0.2.0-rc.1 plugin --profile web list dsh-kimi-subscription --depth 0
-```
-
-**Desktop application:** the application manages its own `desktop` profile. Use its plugin installation UI rather than modifying `desktop` through these CLI commands.
-
-Restart the target DSH instance after installation. For further local checks, `dsh --profile web --dump-config` should show one `kimi-subscription` entry. Inspect and redact personal paths and sensitive settings before sharing diagnostics; do not post the entire configuration.
+Restart the desktop application after installation. For further local checks on a non-desktop profile, `dsh --profile <name> --dump-config` should show one `kimi-subscription` entry.
 
 ## Sign-in and credentials
 
@@ -92,22 +80,18 @@ The intended composed route sends Kimi models to Kimi search, Codex models to th
 
 ## Updates and cleanup
 
-For npm installs, update in Settings or run `dsh plugin --profile web add dsh-kimi-subscription@latest`. For local `link:` installs, pull, test, and rebuild the checkout. For release archives, install the selected `.tgz` again. Restart the target DSH instance afterwards.
+**Update.** Prefer **Settings → Kimi subscription → Update plugin** in the desktop app: it installs the exact version into the `desktop` profile with DSH's bundled pnpm and reads the version back from `package.json`, so a command that installed nothing never reads as success. Local `link:` development installs cannot use that button; pull, test, and rebuild the checkout instead.
 
-The desktop app owns its `desktop` profile exclusively: `dsh plugin --profile desktop …` is refused with `profile "desktop" is managed exclusively by the Electron application`, so the plugin performs that update itself. From 1.3.1 the **Update plugin** button installs the exact version into that profile with DSH's bundled pnpm. On an older version whose button fails, run this manually (pnpm ≥ 11):
+The desktop app owns its `desktop` profile exclusively, and `dsh plugin --profile desktop …` is refused by the CLI with `profile "desktop" is managed exclusively by the Electron application`, so do not reach for the CLI. On an older version whose button fails, run this manually (pnpm ≥ 11):
 
 ```sh
 cd "$HOME/.dsh/profiles/desktop"    # Windows: cd "$env:USERPROFILE\.dsh\profiles\desktop"
-pnpm add --save-exact dsh-kimi-subscription@1.3.2
+pnpm add --save-exact dsh-kimi-subscription@1.3.3
 ```
 
 Then quit the desktop app completely and start it again. A successful update shows the target version in that profile's `package.json` while its `dsh.profile.bundles` entry stays unchanged.
 
-Before removal, switch search to **Do not take over**, then run:
-
-```sh
-dsh plugin --profile web remove dsh-kimi-subscription
-```
+**Uninstall.** Switch search to **Do not take over** first, then use **Uninstall** for this plugin on the app's **Plugins** page.
 
 If already removed, delete only the following markers and the block between them from the owning profile's `cordis.patch.yml`:
 
@@ -127,10 +111,10 @@ pnpm install --frozen-lockfile
 pnpm run check
 ```
 
-To link a checkout, replace the example absolute path with the real local path:
+To let the desktop app link to a checkout, hand the plugin's absolute path to **Add plugin** on the Plugins page (that field accepts a local directory). For a non-desktop profile the CLI also works:
 
 ```sh
-dsh plugin --profile web add /absolute/path/to/dsh-kimi-subscription
+dsh plugin --profile <name> add /absolute/path/to/dsh-kimi-subscription
 ```
 
 `pnpm run check` tests, builds, and creates a package in `.artifacts/`. After source changes, test, rebuild, and manually restart DSH. For documentation-only changes, run `pnpm run test` and `git diff --check`. A successful build does not verify sign-in, GUI behavior, or live model calls.

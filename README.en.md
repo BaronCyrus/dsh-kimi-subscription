@@ -38,13 +38,15 @@ You need **DeepSeek Harness** and an active **Kimi Code subscription**. For DSH 
 
 ### 1. Install the plugin
 
-Run in a terminal:
+Open the desktop application's **Plugins** page, click **Add plugin**, and enter this as the **package name or address**:
 
-```sh
-dsh plugin --profile web add dsh-kimi-subscription@latest
+```text
+dsh-kimi-subscription
 ```
 
-Then **manually restart the target DSH instance**. Refreshing the browser alone does not reload the plugin inside the Host process.
+Choose the **official** install source, then click **Install**. The same field also accepts a GitHub repository address or an absolute path to a local plugin directory; to pin a version, enter `dsh-kimi-subscription@1.3.3`.
+
+Then **manually restart the desktop application** — it reports that changes take effect on the next launch, and refreshing the page alone does not reload the plugin inside the Host process.
 
 ### 2. Connect your subscription
 
@@ -57,21 +59,15 @@ Open **Settings → Kimi subscription**. Enter a **subscription API key** create
 Choose a model your subscription can use from the **Kimi subscription** group, then start a conversation or coding task. A model appearing in the list does not guarantee that your account has access to it.
 
 <details>
-<summary>Verify the install / use npx / pin a version</summary>
+<summary>Verify the install / pin a version / install from <code>.tgz</code></summary>
 
-Check the installation in the selected profile:
+The **Plugins** page shows the installed state and version, and is also where you enable, disable, or uninstall.
 
-```sh
-dsh plugin --profile web list dsh-kimi-subscription --depth 0
-```
+The install source can be switched next to it; to pin a version, put `dsh-kimi-subscription@<version>` straight into **package name or address**. For offline or audited setups, download `dsh-kimi-subscription-1.3.3.tgz` from [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) and install from that file's absolute path instead.
 
-When you run DSH through `npx` without a global `dsh` command, retain the complete launcher prefix. This example uses a DSH version with a compatibility record in the repository:
+**For non-desktop profiles only:** `dsh plugin --profile <name> add dsh-kimi-subscription@latest` works for a scratch profile. Do not use it for `desktop` — the CLI refuses it outright (`profile "desktop" is managed exclusively by the Electron application`). Use the Plugins page for the desktop app.
 
-```sh
-npx -y @deepseek-ai/dsh@0.2.0-rc.1 plugin --profile web add dsh-kimi-subscription@latest
-```
-
-For pinned releases, local release archives, and desktop installation, see [Installation and compatibility](docs/guide.en.md#installation-and-compatibility). Do not modify the desktop application's managed `desktop` profile through the CLI.
+Details are in [Installation and compatibility](docs/guide.en.md#installation-and-compatibility).
 
 </details>
 
@@ -103,23 +99,13 @@ Quick links: [Sign-in and credentials](docs/guide.en.md#sign-in-and-credentials)
 
 ## Update and uninstall
 
-**Update an npm installation:** check for updates in Settings, or run:
+**Update:** open **Settings → Kimi subscription → Update plugin**. It installs the exact version into the `desktop` profile with DSH's bundled pnpm and reads the version back from `package.json`, so a command that installed nothing never reads as success. Manual recovery steps are in [Updates and cleanup](docs/guide.en.md#updates-and-cleanup).
 
-```sh
-dsh plugin --profile web add dsh-kimi-subscription@latest
-```
+A local `link:` development install cannot use that button; pull, test, and rebuild its checkout instead of replacing the development link with an install command. The desktop app owns its `desktop` profile exclusively and the CLI refuses `dsh plugin --profile desktop …` (`profile "desktop" is managed exclusively by the Electron application`); `dsh plugin --profile <name> …` applies to non-desktop profiles only.
 
-For a local `link:` development install, pull, test, and rebuild its checkout instead. Do not replace the development link with the npm command above.
+**Uninstall:** if Kimi search was enabled, first switch it to **Do not take over**, then use **Uninstall** for this plugin on the app's **Plugins** page.
 
-The desktop app owns its `desktop` profile exclusively and refuses `dsh plugin --profile desktop …`, so the desktop **Update plugin** button installs the exact version into that profile with DSH's bundled pnpm. Manual recovery steps are in [Updates and cleanup](docs/guide.en.md#updates-and-cleanup).
-
-**Uninstall:** if Kimi search was enabled, first switch it to **Do not take over**, then run:
-
-```sh
-dsh plugin --profile web remove dsh-kimi-subscription
-```
-
-Manually restart the target DSH instance after installation, updates, or removal. If the plugin is already removed but its search patch remains, remove only its marked block as described in [Updates and cleanup](docs/guide.en.md#updates-and-cleanup); do not delete the entire profile.
+Manually restart the desktop application after installation, updates, or removal. If the plugin is already removed but its search patch remains, remove only its marked block as described in [Updates and cleanup](docs/guide.en.md#updates-and-cleanup); do not delete the entire profile.
 
 ## FAQ
 
@@ -127,7 +113,7 @@ Manually restart the target DSH instance after installation, updates, or removal
 
 **No quota readout?** Check that a Kimi subscription model is selected, then refresh usage in Settings. Missing usage data should not be interpreted as a zero balance.
 
-**Still seeing the old UI?** Restart DSH fully, then refresh the page. A browser refresh alone does not reload the Host adapter.
+**Still seeing the old UI?** Quit the desktop application completely and open it again. A page refresh alone does not reload the Host adapter.
 
 ## Security and scope
 

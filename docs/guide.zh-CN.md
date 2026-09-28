@@ -8,35 +8,21 @@
 
 本仓库的 DSH peer 声明为 `>=0.1.1-rc.2 <0.3.0-0`；已记录的验证版本、依赖版本与验证范围见 [compatibility.json](../compatibility.json) 和 [package.json](../package.json)。兼容范围不代表其中每个版本都经过完整 GUI、登录和真实模型调用验证。
 
-**Web profile：**
+**桌面应用（唯一支持的方式）：** 打开桌面应用的**插件**页，点击**添加插件**，在**包名或地址**中填入 `dsh-kimi-subscription`，在**安装源**中选择**官方源**，然后点击**安装**。同一个输入框也接受 GitHub 仓库地址和本机插件目录的绝对路径。
 
-```sh
-dsh plugin --profile web add dsh-kimi-subscription@latest
-dsh plugin --profile web list dsh-kimi-subscription --depth 0
+安装完成后**手动重启桌面应用**；应用自身会提示「更改将在下次启动生效」。
+
+需要可重复安装时，在同一个输入框中把版本一起写上（版本号换成你要的）：
+
+```text
+dsh-kimi-subscription@1.3.3
 ```
 
-需要可重复安装时可固定已发布版本，例如：
+从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载 `dsh-kimi-subscription-1.3.3.tgz` 后，也可以改用该文件的绝对路径安装，适合离线或审计场景。
 
-```sh
-dsh plugin --profile web add dsh-kimi-subscription@1.3.2
-```
+**其它 profile（例如自建 profile）：** `dsh plugin --profile <name> add dsh-kimi-subscription@latest` 仍可用于非桌面 profile。**不要**对 `desktop` 使用它：CLI 会直接拒绝（`profile "desktop" is managed exclusively by the Electron application`），请改用上面的插件页。
 
-从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载 `.tgz` 后，也可将其路径交给同一安装命令。例如已下载对应文件时：
-
-```sh
-dsh plugin --profile web add ./dsh-kimi-subscription-1.3.2.tgz
-```
-
-使用 `npx` 启动 DSH 时，安装插件也要保留相同的完整前缀；没有全局 `dsh` 命令并不代表插件有故障。以下是具有仓库兼容记录的版本示例，不是要求切换你的安装版本：
-
-```sh
-npx -y @deepseek-ai/dsh@0.2.0-rc.1 plugin --profile web add dsh-kimi-subscription@latest
-npx -y @deepseek-ai/dsh@0.2.0-rc.1 plugin --profile web list dsh-kimi-subscription --depth 0
-```
-
-**桌面应用：** `desktop` profile 由桌面应用管理，请通过它的插件安装入口操作，不要使用上述 CLI 命令修改 `desktop`。
-
-安装后手动重启目标 DSH。需要进一步检查配置时，可在本机运行 `dsh --profile web --dump-config`，确认只有一个 `kimi-subscription` 条目；分享诊断前检查并隐藏个人路径和敏感配置，不要公开整份配置。
+插件页只列出当前部署中存在的 profile；如果提示「本部署没有可管理的 profile」，说明 profile 尚未就绪，应先在桌面应用中完成初始化。分享诊断信息前请检查并隐藏个人路径和敏感配置，不要公开整份配置。
 
 ## 登录与凭据
 
@@ -92,22 +78,18 @@ DSH 同一运行环境中只有一个生效的全局搜索提供方槽位；选�
 
 ## 更新与清理
 
-npm 安装可从设置页更新，或运行 `dsh plugin --profile web add dsh-kimi-subscription@latest`。本地 `link:` 安装应拉取对应 checkout、测试并构建；Release `.tgz` 安装应重新安装你选定的包。更新后手动重启目标 DSH。
+**更新。** 首选桌面应用 **设置 → Kimi 订阅 → 更新插件**：它会在 `desktop` profile 目录中用 DSH 自带的 pnpm 安装精确版本，并读回 `package.json` 确认版本真的落地，因此不会把「命令退出码为 0」当成更新成功。本地 `link:` 开发安装不适用该按钮，应在对应 checkout 拉取代码、测试并重新构建。
 
-桌面版的 `desktop` profile 由 Electron 应用独占，`dsh plugin --profile desktop …` 会被直接拒绝（`profile "desktop" is managed exclusively by the Electron application`），所以桌面版要由插件自己更新。1.3.1 起「更新插件」会在该 profile 目录中用 DSH 自带的 pnpm 安装精确版本；若你仍停留在旧版本并且按钮报错，可在终端手动执行（pnpm 需 ≥ 11）：
+`desktop` profile 由 Electron 应用独占，`dsh plugin --profile desktop …` 会被 CLI 直接拒绝（`profile "desktop" is managed exclusively by the Electron application`），所以桌面版不要走 CLI。若你所在版本较旧、按钮报错，可在终端手动执行（pnpm 需 ≥ 11）：
 
 ```sh
 cd "$HOME/.dsh/profiles/desktop"    # Windows: cd "$env:USERPROFILE\.dsh\profiles\desktop"
-pnpm add --save-exact dsh-kimi-subscription@1.3.2
+pnpm add --save-exact dsh-kimi-subscription@1.3.3
 ```
 
 然后完全退出并重启桌面版。更新成功后该 profile 的 `package.json` 里依赖应变为目标版本，`dsh.profile.bundles` 条目保持不变。
 
-卸载前，建议先将网页搜索切回「不接管」，再运行：
-
-```sh
-dsh plugin --profile web remove dsh-kimi-subscription
-```
+**卸载。** 建议先将网页搜索切回「不接管」，再在桌面应用的**插件**页中对本插件执行**卸载**。
 
 若插件已经卸载，只删除所属 profile 的 `cordis.patch.yml` 中以下两条标记及其之间的内容：
 
@@ -127,10 +109,10 @@ pnpm install --frozen-lockfile
 pnpm run check
 ```
 
-需要链接 checkout 时，将示例绝对路径替换为本机实际路径：
+需要让桌面应用链接到 checkout 时，把本机插件的绝对路径交给插件页的**添加插件**（该输入框接受本地目录）；非桌面 profile 也可以用 CLI：
 
 ```sh
-dsh plugin --profile web add /absolute/path/to/dsh-kimi-subscription
+dsh plugin --profile <name> add /absolute/path/to/dsh-kimi-subscription
 ```
 
 `pnpm run check` 执行测试、构建，并在 `.artifacts/` 中生成包。修改源码后至少重新测试、构建并手动重启 DSH；仅修改文档时运行 `pnpm run test` 与 `git diff --check`。构建通过不等于登录、GUI 或真实模型调用已经验证。

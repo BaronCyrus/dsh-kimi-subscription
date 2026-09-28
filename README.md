@@ -40,13 +40,15 @@
 
 ### 1. 安装插件
 
-在终端运行：
+打开桌面应用的**插件**页，点击**添加插件**，在**包名或地址**中填入：
 
-```sh
-dsh plugin --profile web add dsh-kimi-subscription@latest
+```text
+dsh-kimi-subscription
 ```
 
-完成后，**手动重启正在运行的目标 DSH**。仅刷新浏览器不会重新加载 Host 中的插件。
+在**安装源**中选择**官方源**，然后点击**安装**。同一个输入框也接受 GitHub 仓库地址和本机插件目录的绝对路径；需要固定版本时填入 `dsh-kimi-subscription@1.3.3`。
+
+完成后**手动重启桌面应用** —— 应用自身会提示「更改将在下次启动生效」，仅刷新页面不会重新加载 Host 中的插件。
 
 ### 2. 连接订阅
 
@@ -59,21 +61,15 @@ dsh plugin --profile web add dsh-kimi-subscription@latest
 在模型选择器中选择 **Kimi subscription** 分组下、你的订阅有权使用的模型，即可开始对话或编程。能在列表中看到模型，不代表账号一定具备调用权限。
 
 <details>
-<summary>检查安装 / 使用 npx / 安装指定版本</summary>
+<summary>检查安装 / 固定版本 / <code>.tgz</code> 安装</summary>
 
-检查当前 profile 中的安装：
+在桌面应用的**插件**页可以看到已安装状态与版本，也可以在那里启用、停用或卸载。
 
-```sh
-dsh plugin --profile web list dsh-kimi-subscription --depth 0
-```
+安装完成后在**安装源**旁可以切换镜像源；需要固定版本时把 `dsh-kimi-subscription@<version>` 直接填进**包名或地址**。离线或需要审计时，从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载 `dsh-kimi-subscription-1.3.3.tgz`，改用该文件的绝对路径安装。
 
-只有通过 `npx` 运行 DSH、没有全局 `dsh` 命令时，需要保留完整的启动前缀。以下使用仓库已有兼容记录的 DSH 版本作为示例：
+**仅用于其它 profile：** `dsh plugin --profile <name> add dsh-kimi-subscription@latest` 可用于自建 profile。不要对 `desktop` 使用它 —— CLI 会直接拒绝（`profile "desktop" is managed exclusively by the Electron application`），桌面版请走插件页。
 
-```sh
-npx -y @deepseek-ai/dsh@0.2.0-rc.1 plugin --profile web add dsh-kimi-subscription@latest
-```
-
-固定版本安装、Release 包安装和桌面应用的区别见 [安装与兼容性](docs/guide.zh-CN.md#安装与兼容性)。不要通过 CLI 修改由桌面应用管理的 `desktop` profile。
+细节见 [安装与兼容性](docs/guide.zh-CN.md#安装与兼容性)。
 
 </details>
 
@@ -105,23 +101,13 @@ npx -y @deepseek-ai/dsh@0.2.0-rc.1 plugin --profile web add dsh-kimi-subscriptio
 
 ## 更新与卸载
 
-**更新 npm 安装：** 可在设置页检查更新，也可以运行：
+**更新：** 打开 **设置 → Kimi 订阅 → 更新插件**。它会在 `desktop` profile 目录中用 DSH 自带的 pnpm 安装精确版本，并读回 `package.json` 确认版本真的落地；失败时的手动步骤见[更新与清理](docs/guide.zh-CN.md#更新与清理)。
 
-```sh
-dsh plugin --profile web add dsh-kimi-subscription@latest
-```
+本地 `link:` 开发安装不适用该按钮，应在对应仓库拉取代码、测试并重新构建，不要用安装命令替换开发链接。`desktop` profile 由桌面应用独占，`dsh plugin --profile desktop …` 会被 CLI 拒绝（`profile "desktop" is managed exclusively by the Electron application`）；`dsh plugin --profile <name> …` 仅适用于非桌面 profile。
 
-本地 `link:` 开发安装应在对应仓库拉取代码、测试并重新构建，不要用上述命令替换开发链接。
+**卸载：** 若启用过 Kimi 搜索，先在设置页切回「不接管」，再在桌面应用的**插件**页对本插件执行**卸载**。
 
-桌面版由 Electron 应用独占 `desktop` profile，`dsh plugin --profile desktop …` 会被拒绝，因此桌面版的「更新插件」由插件自己在该 profile 目录中用 DSH 自带的 pnpm 安装精确版本；失败时的手动步骤见[更新与清理](docs/guide.zh-CN.md#更新与清理)。
-
-**卸载：** 若启用过 Kimi 搜索，先在设置页切回「不接管」，再运行：
-
-```sh
-dsh plugin --profile web remove dsh-kimi-subscription
-```
-
-安装、更新或卸载后，均请手动重启目标 DSH。已经卸载、但还残留搜索补丁时，只清理本插件的标记块，具体见 [更新与清理](docs/guide.zh-CN.md#更新与清理)；不要删除整个 profile。
+安装、更新或卸载后，均请手动重启桌面应用。已经卸载、但还残留搜索补丁时，只清理本插件的标记块，具体见 [更新与清理](docs/guide.zh-CN.md#更新与清理)；不要删除整个 profile。
 
 ## 常见问题
 
@@ -129,7 +115,7 @@ dsh plugin --profile web remove dsh-kimi-subscription
 
 **额度没有显示？** 先确认选择的是 Kimi 订阅模型，再到设置页刷新余量；没有返回可用数据时，不应把缺失显示理解为额度为零。
 
-**更新后还是旧界面？** 完整重启 DSH 后再刷新页面。仅刷新前端不会重载 Host 适配器。
+**更新后还是旧界面？** 完全退出并重新打开桌面应用。仅刷新前端不会重载 Host 适配器。
 
 ## 安全边界
 
