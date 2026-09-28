@@ -18,13 +18,13 @@ dsh plugin --profile web list dsh-kimi-subscription --depth 0
 For reproducibility, pin a published version, for example:
 
 ```sh
-dsh plugin --profile web add dsh-kimi-subscription@1.2.14
+dsh plugin --profile web add dsh-kimi-subscription@1.3.0
 ```
 
 A `.tgz` downloaded from [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) can use the same install command. With the matching file already downloaded:
 
 ```sh
-dsh plugin --profile web add ./dsh-kimi-subscription-1.2.14.tgz
+dsh plugin --profile web add ./dsh-kimi-subscription-1.3.0.tgz
 ```
 
 When DSH is launched with `npx`, keep the same complete prefix for plugin operations. A missing global `dsh` command is not a plugin failure. This example uses a version with a recorded compatibility check; it is not an instruction to switch your installed DSH version:

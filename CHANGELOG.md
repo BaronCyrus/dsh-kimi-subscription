@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0 — 2026-09-28
+
+- Add the original Moonlight Coder mascot and reorganize the project homepage around features, installation, daily use, screenshots, and maintenance.
+- Add an English README and Chinese/English usage guides covering subscription credentials, model access, quota, web-search coexistence, and safe removal.
+- Include the mascot, both READMEs, and both guides in the published package so the new documentation assets ship with npm and release archives.
+- Refresh pinned installation examples to this release and add a regression check for the documentation packaging contract.
+- No model-routing, authentication, search, quota, or peer-dependency behavior changes. This release carries forward the runtime from 1.2.14.
+
 ## 1.2.14
 
 - Explain a plan-gated model instead of letting it read as a credential failure. Kimi Code gates models by membership tier and answers a request for a model the plan does not include with HTTP 401; the host classifies any 401 as `AUTH` and its chat surface replaces the text with「API 密钥无效」, so a tier limit looked like a broken key. The stream guard now rewrites that terminal failure into an explicit sentence naming the model and suggesting `kimi-for-coding`. The replacement deliberately carries no status code and none of the words the host matches for quota, rate limits, timeouts, or transport faults, which also keeps the failure out of the `AUTH` retry policy that cannot help it.

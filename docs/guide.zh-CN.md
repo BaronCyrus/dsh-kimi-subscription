@@ -18,13 +18,13 @@ dsh plugin --profile web list dsh-kimi-subscription --depth 0
 需要可重复安装时可固定已发布版本，例如：
 
 ```sh
-dsh plugin --profile web add dsh-kimi-subscription@1.2.14
+dsh plugin --profile web add dsh-kimi-subscription@1.3.0
 ```
 
 从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载 `.tgz` 后，也可将其路径交给同一安装命令。例如已下载对应文件时：
 
 ```sh
-dsh plugin --profile web add ./dsh-kimi-subscription-1.2.14.tgz
+dsh plugin --profile web add ./dsh-kimi-subscription-1.3.0.tgz
 ```
 
 使用 `npx` 启动 DSH 时，安装插件也要保留相同的完整前缀；没有全局 `dsh` 命令并不代表插件有故障。以下是具有仓库兼容记录的版本示例，不是要求切换你的安装版本：
