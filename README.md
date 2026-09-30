@@ -46,7 +46,7 @@
 dsh-kimi-subscription
 ```
 
-在**安装源**中选择**官方源**，然后点击**安装**。同一个输入框也接受 GitHub 仓库地址和本机插件目录的绝对路径；需要固定版本时填入 `dsh-kimi-subscription@1.3.3`。
+在**安装源**中选择**官方源**，然后点击**安装**。同一个输入框也接受 GitHub 仓库地址和本机插件目录的绝对路径；需要固定版本时填入 `dsh-kimi-subscription@1.3.4`。
 
 完成后**手动重启桌面应用** —— 应用自身会提示「更改将在下次启动生效」，仅刷新页面不会重新加载 Host 中的插件。
 
@@ -65,7 +65,7 @@ dsh-kimi-subscription
 
 在桌面应用的**插件**页可以看到已安装状态与版本，也可以在那里启用、停用或卸载。
 
-安装完成后在**安装源**旁可以切换镜像源；需要固定版本时把 `dsh-kimi-subscription@<version>` 直接填进**包名或地址**。离线或需要审计时，从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载 `dsh-kimi-subscription-1.3.3.tgz`，改用该文件的绝对路径安装。
+安装完成后在**安装源**旁可以切换镜像源；需要固定版本时把 `dsh-kimi-subscription@<version>` 直接填进**包名或地址**。离线或需要审计时，从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载 `dsh-kimi-subscription-1.3.4.tgz`，改用该文件的绝对路径安装。
 
 **仅用于其它 profile：** `dsh plugin --profile <name> add dsh-kimi-subscription@latest` 可用于自建 profile。不要对 `desktop` 使用它 —— CLI 会直接拒绝（`profile "desktop" is managed exclusively by the Electron application`），桌面版请走插件页。
 

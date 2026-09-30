@@ -44,7 +44,7 @@ Open the desktop application's **Plugins** page, click **Add plugin**, and enter
 dsh-kimi-subscription
 ```
 
-Choose the **official** install source, then click **Install**. The same field also accepts a GitHub repository address or an absolute path to a local plugin directory; to pin a version, enter `dsh-kimi-subscription@1.3.3`.
+Choose the **official** install source, then click **Install**. The same field also accepts a GitHub repository address or an absolute path to a local plugin directory; to pin a version, enter `dsh-kimi-subscription@1.3.4`.
 
 Then **manually restart the desktop application** — it reports that changes take effect on the next launch, and refreshing the page alone does not reload the plugin inside the Host process.
 
@@ -63,7 +63,7 @@ Choose a model your subscription can use from the **Kimi subscription** group, t
 
 The **Plugins** page shows the installed state and version, and is also where you enable, disable, or uninstall.
 
-The install source can be switched next to it; to pin a version, put `dsh-kimi-subscription@<version>` straight into **package name or address**. For offline or audited setups, download `dsh-kimi-subscription-1.3.3.tgz` from [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) and install from that file's absolute path instead.
+The install source can be switched next to it; to pin a version, put `dsh-kimi-subscription@<version>` straight into **package name or address**. For offline or audited setups, download `dsh-kimi-subscription-1.3.4.tgz` from [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) and install from that file's absolute path instead.
 
 **For non-desktop profiles only:** `dsh plugin --profile <name> add dsh-kimi-subscription@latest` works for a scratch profile. Do not use it for `desktop` — the CLI refuses it outright (`profile "desktop" is managed exclusively by the Electron application`). Use the Plugins page for the desktop app.
 

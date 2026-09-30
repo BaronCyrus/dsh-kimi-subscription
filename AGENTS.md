@@ -147,39 +147,32 @@ Never reuse, move, delete, or overwrite a published npm version or Git tag. If a
    git diff --check
    ```
 
-5. Commit, create an annotated tag, and push without force:
+5. Commit the release and push `main` without force. The publish workflow must be on the commit that will be tagged. Do not push the tag in this step.
 
    ```sh
    git add <release-files>
    git commit -m "chore: prepare release v<version>"
-   git tag -a v<version> -m "dsh-kimi-subscription v<version>"
    git push origin main
+   ```
+
+6. Confirm the package has a GitHub Actions trusted publisher before pushing the tag: repository `BaronCyrus/dsh-kimi-subscription`, workflow filename `publish.yml`, environment empty, and direct `npm publish` allowed. A granular token that bypasses 2FA cannot create this relationship. Never request that a token, password, or one-time code be pasted into chat.
+
+7. Create the annotated tag and push it. That push runs [`.github/workflows/publish.yml`](.github/workflows/publish.yml), which publishes with GitHub OIDC. Do not run `npm publish` locally for a release. A local publish cannot attach provenance, and that version can never gain the green check. Do not set `NODE_AUTH_TOKEN` or a setup-node `registry-url` in the publish workflow; npm treats either as token auth and skips OIDC.
+
+   ```sh
+   git tag -a v<version> -m "dsh-kimi-subscription v<version>"
    git push origin v<version>
    ```
 
-6. Confirm GitHub CI succeeds for the release commit before declaring the release healthy.
-
-7. Verify npm authentication without exposing secrets:
-
-   ```sh
-   npm whoami
-   ```
-
-   npm requires publish 2FA or a valid write-capable Granular Access Token that satisfies the registry's current policy. On `E401`, `E403`, or `EOTP`, stop and ask the user to fix authentication locally. Never request that a token, password, or one-time code be pasted into chat.
-
-8. Publish the exact tarball that passed validation:
-
-   ```sh
-   npm publish .artifacts/dsh-kimi-subscription-<version>.tgz --access public
-   ```
+8. Confirm the publish workflow succeeded for that tag before declaring the release public. On an OIDC `package not found` error, fix the trusted publisher and re-run the same workflow. Do not move the tag.
 
 9. Verify npm before creating release claims:
 
    ```sh
-   npm view dsh-kimi-subscription@<version> name version dist-tags dist.tarball dist.shasum dist.integrity repository --json
+   npm view dsh-kimi-subscription@<version> name version dist-tags dist.tarball dist.shasum dist.integrity dist.attestations repository --json
    ```
 
-   Download the npm tarball into a temporary directory, compare its SHA-256 with the local artifact, install it in a temporary directory, and smoke-test the exported Host bundle.
+   `dist.attestations.provenance` must be present. Download the npm tarball into a temporary directory, compare its SHA-256 with the local artifact, install it in a temporary directory, and smoke-test the exported Host bundle. The publish workflow packs with `npm publish` from the tagged commit; if the local `pnpm pack` checksum differs, compare the file list and then the downloaded npm tarball against a fresh `npm pack` of that same commit.
 
 10. Create the matching GitHub Release from the same artifact:
 

@@ -1,0 +1,106 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.20.0
+          cache: pnpm
+      - name: Require an npm CLI that can use trusted publishing
+        run: |
+          node <<'EOF'
+          const { execSync } = require('node:child_process')
+          const version = () => execSync('npm --version', { encoding: 'utf8' }).trim()
+          const supports = value => {
+            const [major, minor, patch] = value.split('.').map(Number)
+            return major > 11 || (major === 11 && (minor > 5 || (minor === 5 && patch >= 1)))
+          }
+          if (!supports(version())) {
+            execSync('npm install -g npm@11', { stdio: 'inherit' })
+          }
+          const current = version()
+          if (!supports(current)) {
+            console.error(`npm ${current} cannot publish with a trusted publisher`)
+            process.exit(1)
+          }
+          console.log(`npm ${current}`)
+          EOF
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Refuse a tag that does not match package.json
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          node <<'EOF'
+          const version = require('./package.json').version
+          const tag = process.env.GITHUB_REF_NAME.replace(/^v/, '')
+          if (version !== tag) {
+            console.error(`tag v${tag} does not match package.json ${version}`)
+            process.exit(1)
+          }
+          EOF
+      - name: Test
+        if: github.event_name != 'workflow_dispatch'
+        run: pnpm run test
+      - name: Verify committed lib/ matches a fresh build of src/
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          pnpm run build
+          git diff --exit-code -- lib
+      - name: Show the OIDC identity npm will match
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          node <<'EOF'
+          async function main() {
+          const audience = 'npm:registry.npmjs.org'
+          const url = new URL(process.env.ACTIONS_ID_TOKEN_REQUEST_URL)
+          url.searchParams.set('audience', audience)
+          const response = await fetch(url, {
+            headers: { Authorization: `Bearer ${process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN}` },
+          })
+          const body = await response.json()
+          if (!response.ok || !body.value) {
+            console.error('GitHub did not return an OIDC token', response.status)
+            process.exit(1)
+          }
+          const payload = JSON.parse(Buffer.from(body.value.split('.')[1], 'base64url').toString())
+          const claims = ['repository','repository_owner','workflow','workflow_ref','job_workflow_ref','ref','environment','repository_visibility','aud','iss']
+          for (const key of claims) console.log(`${key}=${payload[key] ?? ''}`)
+          const exchange = await fetch('https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/dsh-kimi-subscription', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${body.value}` },
+          })
+          const text = await exchange.text()
+          console.log(`exchange_status=${exchange.status}`)
+          console.log(text.slice(0, 500).replace(/"token"\s*:\s*"[^"]+"/g, '"token":"[redacted]"'))
+          }
+          main()
+          EOF
+      - name: Publish
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          if [ -z "$ACTIONS_ID_TOKEN_REQUEST_URL" ]; then
+            echo "GitHub did not provide an OIDC token request URL"
+            exit 1
+          fi
+          # Do not set NODE_AUTH_TOKEN at all, even to an empty string.
+          # npm treats a present token variable as token auth and skips OIDC.
+          unset NODE_AUTH_TOKEN
+          npm publish

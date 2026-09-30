@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.4 — 2026-09-30
+
+- Publish from GitHub Actions with npm trusted publishing, so the registry stores a provenance attestation. That is the green check beside the version on npm (“Built and signed on GitHub Actions”). `1.3.3` was published from a local machine and cannot gain the mark afterwards; provenance is signed when the version is published.
+- No source, peer-range, compatibility, authentication, search, or quota behavior changes. No live model calls and no credential reads.
+
 ## 1.3.3 — 2026-09-28
 
 - Document the desktop application as the only supported installation target, and drop the web-profile instructions from both READMEs and both guides. The plugin itself is unchanged and still loads on any conforming DSH profile; what changes is what this project tells users to do.
