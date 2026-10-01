@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.6 — 2026-10-01
+
+- Fix `dsh web` still failing with `cannot get property "webServer" without inject` after 1.3.5. `connection.rpc.handle` reads `webServer` on the connection fiber. The official row only injects `webRuntime`, and the bundle patch that adds `webServer` is skipped when it is applied before that row exists, so the running fiber never receives it. Reinstalling the package does not change that. Before opening the account channel, the plugin now attaches the already-running web server onto that fiber. The channel is still Connection's own route, and an unauthenticated request is still rejected. The row patch remains for hosts that apply it.
+- No live model calls and no credential reads.
+
 ## 1.3.5 — 2026-10-01
 
 - Fix `dsh web` failing to activate with `cannot get property "webServer" without inject` after installing the plugin. `@deepseek-ai/dsh-client-connection` declares only `credentials`, while its RPC registration reads `webServer` on that same fiber. DSH `0.2.0-rc.2` `dsh web` and the desktop app load the same `@deepseek-ai/dsh-web-app` row, and that row injects `webRuntime` alone. The compatibility patch replaces the whole row list, so it now names `credentials`, `webRuntime`, and `webServer` together. Dropping the patch (the row already looked complete) removes `webServer` on both surfaces. Dropping `webRuntime` breaks `trustedHosts`. Dropping `credentials` breaks Connection's own `apply` on a host that does not also merge the module inject list.

@@ -5,6 +5,7 @@ import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { LlmError, resolveRetryPolicy } from '@deepseek-ai/dsh-llm'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 
+import { bindConnectionWebServer } from './connection-webserver.js'
 import { CHANNEL, CREDENTIAL_NAME, DISPLAY_NAME, PROVIDER } from './constants.js'
 import { createKimiAuthService, DshKimiCredentialStore } from './credential-store.js'
 import {
@@ -180,10 +181,15 @@ export function apply(ctx, config) {
   }, 'kimi-subscription: search provider selection')
 
   const handler = createKimiRpcHandler(coordinator, { usageReader, pluginManager, searchPreference })
-  ctx.effect(
-    () => ctx.connection.rpc.handle(CHANNEL, handler, { authority: 'loopback' }),
-    'kimi-subscription: loopback account RPC',
-  )
+  ctx.effect(() => {
+    // The connection row often injects only webRuntime. handle() still reads
+    // webServer on that fiber, which fails the whole plugin before any route
+    // exists. Attach the server that is already running, then register.
+    if (!bindConnectionWebServer(ctx)) {
+      throw new Error('Kimi subscription could not bind the DSH web server')
+    }
+    return ctx.connection.rpc.handle(CHANNEL, handler, { authority: 'loopback' })
+  }, 'kimi-subscription: loopback account RPC')
 }
 
 export {

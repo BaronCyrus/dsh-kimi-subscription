@@ -79,6 +79,28 @@ test('unpatched DSH 0.1.5 connection reproduces the webServer injection error', 
   await assert.rejects(mount(insert), /cannot get property "webServer" without inject/u)
 })
 
+test('full plugin registers its route when the connection row never gained webServer', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'dsh-kimi-compat-'))
+  const previous = process.env.DSH_HOME
+  process.env.DSH_HOME = home
+  let host
+  try {
+    host = await mount(bundle.filter(patch => patch.insert), { fullPlugin: true })
+    assert.equal(host.routes.has(CHANNEL), true)
+    let status, body
+    await host.routes.get(CHANNEL).handler({ headers: { host: 'localhost' }, method: 'POST' }, {
+      writeHead(value) { status = value }, end(value) { body = value },
+    })
+    assert.equal(status, 401)
+    assert.equal(body, 'unauthorized')
+  } finally {
+    await host?.close()
+    if (previous === undefined) delete process.env.DSH_HOME
+    else process.env.DSH_HOME = previous
+    await rm(home, { recursive: true, force: true })
+  }
+})
+
 test('1.2.4 replacement loses the profile webRuntime injection during config interpolation', async () => {
   const broken = bundle.map(patch => patch.id === 'connection' ? { ...patch, inject: ['webServer'] } : patch)
   await assert.rejects(mount(broken), /cannot get property "webRuntime" without inject/u)
