@@ -15,10 +15,10 @@ The repository declares a DSH peer range of `>=0.1.1-rc.2 <0.3.0-0`. Recorded ve
 For a reproducible install, add the version in that same field (substitute the version you want):
 
 ```text
-dsh-kimi-subscription@1.3.4
+dsh-kimi-subscription@1.3.5
 ```
 
-A `dsh-kimi-subscription-1.3.4.tgz` downloaded from [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) can be installed from its absolute path instead, which suits offline or audited setups.
+A `dsh-kimi-subscription-1.3.5.tgz` downloaded from [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) can be installed from its absolute path instead, which suits offline or audited setups.
 
 **Other profiles (for example a scratch profile):** `dsh plugin --profile <name> add dsh-kimi-subscription@latest` still works for non-desktop profiles. Do **not** use it for `desktop`: the CLI refuses it outright (`profile "desktop" is managed exclusively by the Electron application`). Use the Plugins page above instead.
 
@@ -86,7 +86,7 @@ The desktop app owns its `desktop` profile exclusively, and `dsh plugin --profil
 
 ```sh
 cd "$HOME/.dsh/profiles/desktop"    # Windows: cd "$env:USERPROFILE\.dsh\profiles\desktop"
-pnpm add --save-exact dsh-kimi-subscription@1.3.4
+pnpm add --save-exact dsh-kimi-subscription@1.3.5
 ```
 
 Then quit the desktop app completely and start it again. A successful update shows the target version in that profile's `package.json` while its `dsh.profile.bundles` entry stays unchanged.

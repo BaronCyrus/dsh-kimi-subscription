@@ -4,12 +4,19 @@
     - id: kimi-subscription
       name: 'dsh-kimi-subscription'
 
-# DSH 0.1.5-alpha.1 registers RPC routes through the Connection owner's
-# webServer but no longer declares that dependency. Loader entry injections
-# augment the module's own inject list (including credentials), but REPLACE
-# the row's inject list: preserve webRuntime for trustedHosts interpolation.
+# DSH 0.1.5-alpha.1 and 0.2.0-rc.2 both register a dedicated RPC channel with
+# owner.webServer, but @deepseek-ai/dsh-client-connection only declares
+# `credentials`. dsh web and the desktop app load the same dsh-web-app row,
+# and that row injects webRuntime alone (trustedHosts: !!js ctx.webRuntime.trustedHosts).
+# An entry patch replaces the whole row inject list, so name every service the
+# connection fiber actually touches: credentials for apply(), webRuntime for
+# that expression, and webServer for channel registration. On current loaders
+# the module inject is also merged in; listing credentials here keeps the
+# fiber waiting for it even if a host treats the row list as authoritative.
 # The name guard leaves replacement Connection implementations untouched.
-# Older supported web profiles also provide both services.
+# Both surfaces provide all three services. Do not drop this patch: without
+# webServer, dsh web and desktop both fail with
+# `cannot get property "webServer" without inject`.
 - id: connection
   name: '@deepseek-ai/dsh-client-connection'
-  inject: [webRuntime, webServer]
+  inject: [credentials, webRuntime, webServer]

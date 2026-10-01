@@ -14,7 +14,7 @@ import * as legacyConnection from 'connection-legacy'
 
 const bundle = load(await readFile(new URL('../cordis.patch.yml', import.meta.url), 'utf8'))
 
-async function mount(patches, { legacy = false, fullPlugin = false } = {}) {
+async function mount(patches, { legacy = false, fullPlugin = false, moduleInject } = {}) {
   const ctx = new Context()
   await ctx.plugin(Loader)
   const loader = ctx.get('loader')
@@ -34,8 +34,10 @@ async function mount(patches, { legacy = false, fullPlugin = false } = {}) {
     c.provide('web', { searchProviders: new Map(), registerSearchProvider: () => () => {} })
     c.provide('settings', { register: () => ({ get: () => ({ searchProvider: 'default' }), watch: () => () => {} }) })
   } }
-  const connection = { inject: legacy ? legacyConnection.inject : connectionInject, apply(c, config) {
+  const connection = { inject: moduleInject ?? (legacy ? legacyConnection.inject : connectionInject), apply(c, config) {
     assert.deepEqual(config.trustedHosts, ['test.invalid'])
+    // Real Connection apply reads ctx.credentials before any route is registered.
+    void c.credentials
     const Connection = legacy ? legacyConnection.HostConnectionService : HostConnectionService
     new Connection(c, [], { isAuthenticated: () => false })
   } }
@@ -80,6 +82,30 @@ test('unpatched DSH 0.1.5 connection reproduces the webServer injection error', 
 test('1.2.4 replacement loses the profile webRuntime injection during config interpolation', async () => {
   const broken = bundle.map(patch => patch.id === 'connection' ? { ...patch, inject: ['webServer'] } : patch)
   await assert.rejects(mount(broken), /cannot get property "webRuntime" without inject/u)
+})
+
+test('shipped connection row names credentials, webRuntime, and webServer', () => {
+  const row = bundle.find(patch => patch.id === 'connection')
+  // dsh web and desktop share one official row whose inject is only webRuntime.
+  // The patch replaces that array, so it has to restate every dependency.
+  assert.deepEqual(row.inject, ['credentials', 'webRuntime', 'webServer'])
+  assert.equal(row.name, '@deepseek-ai/dsh-client-connection')
+})
+
+test('1.3.4 row inject drops credentials when a host does not merge the module list', async () => {
+  const broken = bundle.map(patch => patch.id === 'connection' ? { ...patch, inject: ['webRuntime', 'webServer'] } : patch)
+  await assert.rejects(mount(broken, { moduleInject: [] }), /cannot get property "credentials" without inject/u)
+})
+
+test('row inject alone can satisfy credentials when the module list is not merged', async () => {
+  const host = await mount(bundle, { moduleInject: [] })
+  try {
+    assert.deepEqual(host.rows.find(row => row.id === 'connection').inject, ['credentials', 'webRuntime', 'webServer'])
+    assert.deepEqual([...host.routes.keys()], [CHANNEL])
+  } finally {
+    await host.loader.root.stop()
+    await host.close()
+  }
 })
 
 test('shipped bundle mounts RPC through the real loader and disposes its route', async () => {

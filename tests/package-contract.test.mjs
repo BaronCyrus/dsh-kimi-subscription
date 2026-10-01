@@ -37,6 +37,7 @@ test('bundle contributes one host row and one DSH client module', async () => {
   assert.deepEqual(incompatiblePeers(manifest, '0.1.5-alpha.2'), [])
   assert.deepEqual(incompatiblePeers(manifest, '0.1.1-rc.2'), [])
   assert.deepEqual(incompatiblePeers(manifest, '0.2.0-rc.1'), [])
+  assert.deepEqual(incompatiblePeers(manifest, '0.2.0-rc.2'), [])
   // The next line is still refused, so the range is a claim about the 0.2 line
   // rather than an unbounded "any future host" promise.
   assert.notDeepEqual(incompatiblePeers(manifest, '0.3.0-rc.1'), [])

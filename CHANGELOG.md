@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.5 — 2026-10-01
+
+- Fix `dsh web` failing to activate with `cannot get property "webServer" without inject` after installing the plugin. `@deepseek-ai/dsh-client-connection` declares only `credentials`, while its RPC registration reads `webServer` on that same fiber. DSH `0.2.0-rc.2` `dsh web` and the desktop app load the same `@deepseek-ai/dsh-web-app` row, and that row injects `webRuntime` alone. The compatibility patch replaces the whole row list, so it now names `credentials`, `webRuntime`, and `webServer` together. Dropping the patch (the row already looked complete) removes `webServer` on both surfaces. Dropping `webRuntime` breaks `trustedHosts`. Dropping `credentials` breaks Connection's own `apply` on a host that does not also merge the module inject list.
+- Confirmed on the `0.2.0-rc.2` CLI bundled with DeepSeek Harness.app: a scratch web profile composes that inject list, keeps the official `trustedHosts` expression, and starts with no activation warning. Desktop was not restarted. No live model calls and no credential reads.
+
 ## 1.3.4 — 2026-09-30
 
 - Publish from GitHub Actions with npm trusted publishing, so the registry stores a provenance attestation. That is the green check beside the version on npm (“Built and signed on GitHub Actions”). `1.3.3` was published from a local machine and cannot gain the mark afterwards; provenance is signed when the version is published.
