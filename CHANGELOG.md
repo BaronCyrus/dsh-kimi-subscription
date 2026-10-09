@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.8 — 2026-10-09
+
+- Show a readable plugin name on the Plugins page: **Kimi Subscription** in English and **Kimi 订阅** in Chinese, with a matching localized description. DSH reads `meta.title` and `meta.description` from `<package>/locale/<language>.json`; without those files the card fell back to the raw package name `dsh-kimi-subscription`. The package now ships `locale/en.json` and `locale/zh-CN.json`, exports `./locale/*.json`, and includes them in the published files.
+- Add a release regression check for the locale export, packaged files, language-id filenames, and the localized titles and descriptions. Pinned installation examples now name 1.3.8.
+- No authentication, model-routing, search, quota, icon, or dependency changes. Update the plugin and fully restart DSH to reload the installed package metadata.
+
 ## 1.3.7 — 2026-10-09
 
 - Show the existing Kimi mascot on the installed plugin card. The package now declares a top-level `icon` and ships a dedicated 512×512 transparent, lossless WebP (208,698 bytes), below DSH's 256 KiB icon limit. The original 1.6 MiB README PNG exceeds that limit and is retained unchanged.
