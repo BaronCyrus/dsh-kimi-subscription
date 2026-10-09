@@ -1,10 +1,11 @@
 {
   "name": "dsh-kimi-subscription",
-  "version": "1.3.6",
+  "version": "1.3.7",
   "packageManager": "pnpm@10.32.1",
   "description": "Use a Kimi Code membership in DeepSeek Harness through a dedicated Kimi subscription model route",
   "type": "module",
   "main": "./lib/index.js",
+  "icon": "./icon-subscription.webp",
   "exports": {
     ".": "./lib/index.js",
     "./client": "./lib/client.js",
@@ -12,6 +13,7 @@
     "./package.json": "./package.json"
   },
   "files": [
+    "icon-subscription.webp",
     "lib/*.js",
     "cordis.patch.yml",
     "README.md",

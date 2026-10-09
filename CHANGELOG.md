@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.7 — 2026-10-09
+
+- Show the existing Kimi mascot on the installed plugin card. The package now declares a top-level `icon` and ships a dedicated 512×512 transparent, lossless WebP (208,698 bytes), below DSH's 256 KiB icon limit. The original 1.6 MiB README PNG exceeds that limit and is retained unchanged.
+- Add a release regression check for the icon declaration, exported manifest, packaged asset, WebP signature, and host byte limit. Pinned installation examples now name 1.3.7.
+- No authentication, model-routing, search, quota, or dependency changes. Update the plugin and fully restart DSH to reload the installed package metadata.
+
 ## 1.3.6 — 2026-10-01
 
 - Fix `dsh web` still failing with `cannot get property "webServer" without inject` after 1.3.5. `connection.rpc.handle` reads `webServer` on the connection fiber. The official row only injects `webRuntime`, and the bundle patch that adds `webServer` is skipped when it is applied before that row exists, so the running fiber never receives it. Reinstalling the package does not change that. Before opening the account channel, the plugin now attaches the already-running web server onto that fiber. The channel is still Connection's own route, and an unauthenticated request is still rejected. The row patch remains for hosts that apply it.
