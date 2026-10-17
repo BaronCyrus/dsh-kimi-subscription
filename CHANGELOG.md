@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.9 — 2026-10-17
+
+- Fix DeepSeek Harness `0.2.1-rc.1` failing to start with this plugin installed. The desktop app stopped with `connection (required)  webRuntime` among the plugins waiting for services, and everything that needs Connection waited behind it. DSH 0.2.1 renamed the service the official `connection` row reads `trustedHosts` from, `webRuntime`, to `webStartup`. The bundle patch shipped since 1.2.4 replaced that row's whole inject list (since 1.3.5 with `credentials`, `webRuntime`, and `webServer`), so on 0.2.1 Connection waited for a service no row provides.
+- The bundle now patches no official row; it only inserts its own. Every DSH version keeps its `connection` row exactly as shipped, so a later rename there cannot block startup again. The account channel still needs `webServer` on the connection fiber, and the binding 1.3.6 added for hosts where the patch did not land now does that everywhere. The plugin opens the channel once the web server is running and reopens it after a restart, instead of failing when Connection starts first. The channel is still Connection's own route behind its authentication fence, and an unauthenticated request is still rejected.
+- Accept `@deepseek-ai/cordis` `4.0.5` and `@earendil-works/pi-ai` `1.1.0`, the versions DeepSeek Harness 0.2.1-rc.1 ships. The Cordis 4.0.5 runtime is byte-identical to 4.0.4, and pi-ai 1.1.0's `kimiCodingProvider` is unchanged. On DSH 0.2.1 the model list shows Kimi models only while the subscription is connected; the host's adapter now asks for a credential before listing any provider's models.
+- Verified offline: all 106 tests pass on the 0.2.0-rc.1 development baseline and again against the host packages inside DeepSeek Harness.app 0.2.1-rc.1. `--dump-config` on the app's bundled CLI, with a scratch DSH home, composes the 1.3.8 row as `[credentials, webRuntime, webServer]` and leaves the official `[webStartup]` row untouched with this version. Desktop was not restarted. No live model calls and no credential reads.
+
 ## 1.3.8 — 2026-10-09
 
 - Show a readable plugin name on the Plugins page: **Kimi Subscription** in English and **Kimi 订阅** in Chinese, with a matching localized description. DSH reads `meta.title` and `meta.description` from `<package>/locale/<language>.json`; without those files the card fell back to the raw package name `dsh-kimi-subscription`. The package now ships `locale/en.json` and `locale/zh-CN.json`, exports `./locale/*.json`, and includes them in the published files.

@@ -30,6 +30,7 @@ function pluginPolicy(t) {
     web: { registerSearchProvider() {} },
     loader: { entries() { assert.fail('retry tests must not inspect profiles') } },
     effect() {},
+    inject() {},
   })
   assert.ok(registered)
   return registered.providerRetryPolicy(PROVIDER)

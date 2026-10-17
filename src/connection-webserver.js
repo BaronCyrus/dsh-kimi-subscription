@@ -1,13 +1,15 @@
 /**
  * Connection's dedicated-channel registration reads `webServer` on the
  * connection fiber (`owner.webServer` inside `rpc.handle`). That fiber only
- * has `webServer` when the loader row lists it. dsh web's official row does
- * not, and a bundle patch that runs before the row is inserted is skipped.
- * The service itself is already provided by `webserver`; Cordis still rejects
- * the read with `cannot get property "webServer" without inject`.
+ * has `webServer` when the loader row lists it, and the official row does not
+ * (DSH 0.2.0 injects webRuntime there, 0.2.1 webStartup). The service itself
+ * is provided by the `webserver` row; Cordis still rejects the read with
+ * `cannot get property "webServer" without inject`.
  *
  * Bind the live implementation onto that fiber before opening the channel.
- * This does not register a second route or skip Connection's authentication.
+ * This replaces the row patch shipped up to 1.3.8, which had to restate the
+ * row's whole inject list and so broke when DSH renamed a service in it.
+ * It does not register a second route or skip Connection's authentication.
  */
 export function bindConnectionWebServer(ctx) {
   const entry = [...ctx.loader.entries()].find(item =>

@@ -181,15 +181,20 @@ export function apply(ctx, config) {
   }, 'kimi-subscription: search provider selection')
 
   const handler = createKimiRpcHandler(coordinator, { usageReader, pluginManager, searchPreference })
-  ctx.effect(() => {
-    // The connection row often injects only webRuntime. handle() still reads
-    // webServer on that fiber, which fails the whole plugin before any route
-    // exists. Attach the server that is already running, then register.
-    if (!bindConnectionWebServer(ctx)) {
-      throw new Error('Kimi subscription could not bind the DSH web server')
-    }
-    return ctx.connection.rpc.handle(CHANNEL, handler, { authority: 'loopback' })
-  }, 'kimi-subscription: loopback account RPC')
+  // The account channel is a route on the DSH web server. The official
+  // connection row does not wait for that server, so Connection (and this
+  // plugin) can start before it listens. Open the channel once it exists and
+  // again whenever it restarts; a host without one has no page to serve.
+  ctx.inject(['webServer'], webCtx => {
+    webCtx.effect(() => {
+      // handle() reads webServer on the connection fiber, and the official row
+      // does not inject it there. Attach the running server, then register.
+      if (!bindConnectionWebServer(webCtx)) {
+        throw new Error('Kimi subscription could not bind the DSH web server')
+      }
+      return webCtx.connection.rpc.handle(CHANNEL, handler, { authority: 'loopback' })
+    }, 'kimi-subscription: loopback account RPC')
+  })
 }
 
 export {

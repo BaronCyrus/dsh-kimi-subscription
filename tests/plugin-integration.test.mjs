@@ -58,6 +58,8 @@ function fakeContext() {
     attachments,
     get(name) { return name === 'attachments' ? attachments : undefined },
     effect(register) { return register() },
+    // The account channel waits for the web server; this host already has one.
+    inject(_services, callback) { return callback(ctx) },
   }
   return { ctx, registered, handled, searchProviders }
 }
@@ -72,9 +74,6 @@ test('plugin registers an isolated Kimi subscription group and loopback auth RPC
   assert.equal(retryPolicy.mode, 'normal')
   assert.equal(retryPolicy.maxRetries, 2)
   assert.ok(retryPolicy.retryableCodes.includes('AUTH'))
-  const models = await adapter.listModels(PROVIDER)
-  assert.ok(models.length > 0)
-  assert.ok(models.every(model => model.provider === PROVIDER))
 
   assert.equal(host.handled.length, 1)
   assert.equal(host.handled[0].channel, '/kimi-subscription')
@@ -121,16 +120,38 @@ test('plugin activates on DSH 0.1.7 settings, which has no register method', asy
   assert.equal(stored, 'kimi')
 })
 
+const TEST_API_KEY = JSON.stringify({ type: 'api_key', key: 'FAKE_SUBSCRIPTION_KEY_FOR_TESTS' })
+
+// DSH 0.2.1 asks resolveApiKey before listing and shows nothing for
+// MISSING_CREDENTIAL; 0.2.0 lists the catalog without asking. Neither fails.
+test('an unconnected subscription never fails the model listing', async () => {
+  const host = fakeContext()
+  apply(host.ctx)
+  const models = await host.registered[0].adapter.listModels(PROVIDER)
+  assert.ok(models.every(model => model.provider === PROVIDER))
+})
+
+test('a connected subscription lists only Kimi models', async () => {
+  const host = fakeContext()
+  await host.ctx.credentials.set(undefined, TEST_API_KEY)
+  apply(host.ctx)
+  const models = await host.registered[0].adapter.listModels(PROVIDER)
+  assert.ok(models.length > 0)
+  assert.ok(models.every(model => model.provider === PROVIDER))
+})
+
 // Listing succeeds even when model resolution is incompatible with the host.
 // Exercise the same resolution step used by DSH's browser model catalog, plus
-// call preparation, without opening a stream or reading any credentials.
+// call preparation, without opening a stream or reading any credentials. Since
+// DSH 0.2.1 the listing itself checks for a credential, so list while connected.
 test('every advertised Kimi model resolves and prepares on the real host adapter', async () => {
   const host = fakeContext()
-  host.ctx.credentials.resolve = async () => assert.fail('model metadata must not read credentials')
+  await host.ctx.credentials.set(undefined, TEST_API_KEY)
   apply(host.ctx)
   const adapter = host.registered[0].adapter
   const models = await adapter.listModels(PROVIDER)
   assert.ok(models.length > 0)
+  host.ctx.credentials.resolve = async () => assert.fail('model metadata must not read credentials')
   for (const model of models) {
     const resolved = await adapter.resolveModel(PROVIDER, model.id)
     assert.equal(resolved.provider, PROVIDER)
