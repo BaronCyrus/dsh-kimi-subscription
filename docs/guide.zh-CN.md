@@ -15,10 +15,10 @@
 需要可重复安装时，在同一个输入框中把版本一起写上（版本号换成你要的）：
 
 ```text
-dsh-kimi-subscription@1.3.9
+dsh-kimi-subscription@1.3.10
 ```
 
-从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载 `dsh-kimi-subscription-1.3.9.tgz` 后，也可以改用该文件的绝对路径安装，适合离线或审计场景。
+从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载 `dsh-kimi-subscription-1.3.10.tgz` 后，也可以改用该文件的绝对路径安装，适合离线或审计场景。
 
 **其它 profile（例如自建 profile）：** `dsh plugin --profile <name> add dsh-kimi-subscription@latest` 仍可用于非桌面 profile。**不要**对 `desktop` 使用它：CLI 会直接拒绝（`profile "desktop" is managed exclusively by the Electron application`），请改用上面的插件页。
 
@@ -84,7 +84,7 @@ DSH 同一运行环境中只有一个生效的全局搜索提供方槽位；选�
 
 ```sh
 cd "$HOME/.dsh/profiles/desktop"    # Windows: cd "$env:USERPROFILE\.dsh\profiles\desktop"
-pnpm add --save-exact dsh-kimi-subscription@1.3.9
+pnpm add --save-exact dsh-kimi-subscription@1.3.10
 ```
 
 不要加 `--config.minimumReleaseAge=0`。安装精确版本时 pnpm 会自己记下例外；加了这个参数，lockfile 里会留下一条 pnpm 之后不认的记录，在该版本发布满 24 小时之前，这个 profile 里再装任何插件都会失败。
