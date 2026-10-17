@@ -13,10 +13,32 @@ export const DEFAULT_VERSION_TTL_MS = 5 * 60_000
 export const DEFAULT_VERSION_TIMEOUT_MS = 10_000
 export const DEFAULT_UPDATE_TIMEOUT_MS = 180_000
 export const DEFAULT_SETTLE_DELAY_MS = 250
-/** Zero minutes: install the exact requested version regardless of its age. */
-export const UPDATE_RELEASE_AGE_MINUTES = 0
 
 const clone = value => structuredClone(value)
+
+const RELEASE_AGE_ERROR = /ERR_PNPM_(?:NO_MATURE_MATCHING_VERSION|MINIMUM_RELEASE_AGE_VIOLATION)/u
+const RELEASE_AGE_ENTRY = /(\S+@\S+) was published at (\S+?), within the minimumReleaseAge cutoff \((\S+?)\)/gu
+
+/**
+ * Recognize pnpm refusing a version younger than its `minimumReleaseAge` in an
+ * install's stdout and stderr, whether the version was requested or already
+ * sits in the profile's lockfile. Each refused entry reads `<name>@<version>
+ * was published at <time>, within the minimumReleaseAge cutoff (<time>)`, and
+ * pnpm drew that cutoff when the install ended (`finishedAt`). Any other
+ * output is undefined; a refusal is `{ availableAt }`, when the youngest
+ * refused entry clears, or `{}` when pnpm did not say.
+ */
+export function releaseAgeRefusal(output, finishedAt) {
+  // A colour-forcing environment can wrap the entries in ANSI escapes.
+  const text = String(output ?? '').replace(/\u001b\[[0-9;]*m/gu, '')
+  if (!RELEASE_AGE_ERROR.test(text)) return undefined
+  let availableAt
+  for (const [, , published, cutoff] of text.matchAll(RELEASE_AGE_ENTRY)) {
+    const clears = Date.parse(published) + (finishedAt - Date.parse(cutoff))
+    if (Number.isFinite(clears) && (availableAt === undefined || clears > availableAt)) availableAt = clears
+  }
+  return availableAt === undefined ? {} : { availableAt }
+}
 
 /** Parse a strict `x.y.z[-pre][+build]` version; anything else is undefined. */
 export function parseSemver(value) {
@@ -64,10 +86,9 @@ const readManifest = async path => {
 
 /**
  * Confirm the version that actually landed in the profile before reporting
- * success. A zero exit only proves the command ran: pnpm's release-age policy
- * can keep the installed version while still exiting zero, and a launcher that
- * starts something else entirely also exits zero. Reading the manifest back is
- * what makes the answer true.
+ * success. A zero exit only proves the command ran: a launcher that starts
+ * something else entirely also exits zero. Reading the manifest back is what
+ * makes the answer true.
  */
 async function confirmInstalled({ profileDir, expected, settleDelayMs, attempts = 3 }) {
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
@@ -335,21 +356,27 @@ export function createKimiPluginManager({
           result = await runCommand({
             command: launcher.command,
             // `pnpm add <exact version>` is what `dsh plugin add` performs for a
-            // registry spec. `--save-exact` keeps the profile dependency pinned,
-            // and the release-age override stops a just-published version from
-            // being skipped as too new (pnpm ≥ 10.16; unknown keys are ignored).
-            args: [
-              ...launcher.prefix,
-              'add', '--save-exact', `--config.minimumReleaseAge=${UPDATE_RELEASE_AGE_MINUTES}`,
-              `${PACKAGE_NAME}@${latest}`,
-            ],
+            // registry spec, and `--save-exact` keeps the profile dependency
+            // pinned. The install runs under the profile's own
+            // `minimumReleaseAge`: a version installed past it would sit in the
+            // profile's lockfile, and pnpm then refuses every later plugin
+            // install in that profile until the version is old enough. pnpm
+            // records an exact version it accepts early in the profile's
+            // `minimumReleaseAgeExclude` itself.
+            args: [...launcher.prefix, 'add', '--save-exact', `${PACKAGE_NAME}@${latest}`],
             cwd: profileDir,
           }, { signal, timeoutMs: updateTimeoutMs })
         } catch (error) {
           if (signal?.aborted) throw error
           throw new Error('Kimi plugin update failed')
         }
-        if (result.code !== 0) throw new Error('Kimi plugin update failed')
+        if (result.code !== 0) {
+          // A stricter policy holds the version back and pnpm exits non-zero.
+          // That is a wait, not a failure: pnpm installs it once old enough.
+          const refusal = releaseAgeRefusal(`${result.stdout ?? ''}\n${result.stderr ?? ''}`, now())
+          if (refusal !== undefined) return { version: latest, profile: install.profile, pending: true, ...refusal }
+          throw new Error('Kimi plugin update failed')
+        }
         await confirmInstalled({ profileDir, expected: latest, settleDelayMs })
         generation += 1
         cached = undefined

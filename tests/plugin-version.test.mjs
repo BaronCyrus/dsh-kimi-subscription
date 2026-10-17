@@ -12,6 +12,7 @@ import {
   NPM_REGISTRY_LATEST_URL,
   PACKAGE_NAME,
   parseSemver,
+  releaseAgeRefusal,
   resolvePnpm,
 } from '../src/plugin-version.js'
 
@@ -193,7 +194,18 @@ const installRecorder = async ({ args, cwd }) => {
   return { code: 0, stdout: '', stderr: '' }
 }
 
-test('update installs the exact version into the owning profile, pinned and age-free', async () => {
+/** pnpm 11.28.5 accepting an exact version younger than its default release age, as captured on 2026-10-17. */
+const ACCEPTED_EARLY = `Added 1 entry to minimumReleaseAgeExclude in pnpm-workspace.yaml (set minimumReleaseAgeStrict to true to gate these updates with a prompt):
+  dsh-kimi-subscription@1.3.9`
+/** The same request refused under an explicit `minimumReleaseAge: 1440`; pnpm exits 1 and keeps 1.3.8. */
+const TOO_NEW = `[ERR_PNPM_NO_MATURE_MATCHING_VERSION] 1 version does not meet the minimumReleaseAge constraint:
+  dsh-kimi-subscription@1.3.9 was published at 2026-10-17T10:35:58.769Z, within the minimumReleaseAge cutoff (2026-10-16T10:50:38.464Z)`
+/** The lockfile check refusing an unrelated install after the old override installed 1.3.9. */
+const LOCKFILE_VIOLATION = `✗ Lockfile failed supply-chain policy check (1 entry in 2s)
+[ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION] 1 lockfile entries failed verification:
+  dsh-kimi-subscription@1.3.9 was published at 2026-10-17T10:34:58.000Z, within the minimumReleaseAge cutoff (2026-10-16T10:50:41.779Z)`
+
+test('update installs the exact version into the owning profile, pinned and under the profile\'s release-age policy', async () => {
   const root = await mkdtemp(join(tmpdir(), 'kimi-version-update-'))
   const ownPackageJsonUrl = await npmInstall(root)
   const calls = []
@@ -209,15 +221,16 @@ test('update installs the exact version into the owning profile, pinned and age-
     },
     runCommand: async (call, options) => {
       calls.push(call)
-      return installRecorder(call, options)
+      // pnpm accepts the young version and records the exception itself.
+      return { ...await installRecorder(call, options), stdout: ACCEPTED_EARLY.replaceAll('1.3.9', '0.4.0') }
     },
   })
   const updated = await manager.update()
   assert.deepEqual(updated, { version: '0.4.0', profile: 'web' })
   assert.equal(calls[0].command, 'pnpm', 'without a bundled entry the pnpm name is the fallback')
-  assert.deepEqual(calls[0].args, [
-    'add', '--save-exact', '--config.minimumReleaseAge=0', `${PACKAGE_NAME}@0.4.0`,
-  ])
+  // No minimumReleaseAge override: a version installed past the policy would
+  // make pnpm refuse every later plugin install in the profile.
+  assert.deepEqual(calls[0].args, ['add', '--save-exact', `${PACKAGE_NAME}@0.4.0`])
   assert.equal(calls[0].cwd, join(root, 'profiles', 'web'))
   await manager.read()
   assert.equal(registryRequests, 2, 'a successful update invalidates the cached version')
@@ -244,9 +257,7 @@ test('desktop hosts install with the bundled pnpm, never by launching the deskto
   assert.deepEqual(await manager.update(), { version: '1.3.0', profile: 'web' })
   const [call] = calls
   assert.equal(call.command, '/Applications/DeepSeek Harness', 'the host executable is the Node runtime')
-  assert.deepEqual(call.args, [
-    runtime.pnpm, 'add', '--save-exact', '--config.minimumReleaseAge=0', `${PACKAGE_NAME}@1.3.0`,
-  ])
+  assert.deepEqual(call.args, [runtime.pnpm, 'add', '--save-exact', `${PACKAGE_NAME}@1.3.0`])
   const flattened = JSON.stringify(call)
   assert.equal(flattened.includes(runtime.hostEntry), false, 'the desktop host entry is never launched again')
   assert.equal(flattened.includes('--expose-internals'), false, 'no launcher flag leaks into a script position')
@@ -267,6 +278,56 @@ test('an update that installs nothing is a failure, not a reported success', asy
     () => manager.update(),
     /^Error: Kimi plugin update did not install the requested version$/u,
   )
+})
+
+test('a release-age refusal says when pnpm will accept the youngest refused version', () => {
+  const finishedAt = Date.parse('2026-10-17T10:50:38.464Z')
+  assert.deepEqual(releaseAgeRefusal(TOO_NEW, finishedAt), { availableAt: Date.parse('2026-10-18T10:35:58.769Z') })
+  assert.deepEqual(releaseAgeRefusal(LOCKFILE_VIOLATION, Date.parse('2026-10-17T10:50:41.779Z')),
+    { availableAt: Date.parse('2026-10-18T10:34:58.000Z') })
+  // Every refused entry must clear, so the youngest decides wherever pnpm lists it.
+  const entry = (name, published) => `  ${name} was published at ${published}, within the minimumReleaseAge cutoff (2026-10-16T10:50:41.779Z)`
+  const several = [
+    '[ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION] 3 lockfile entries failed verification:',
+    entry('dsh-packycode-api@1.3.2', '2026-10-16T19:15:26.000Z'),
+    entry('\u001b[1mdsh-kimi-subscription@1.3.9\u001b[22m', '2026-10-17T10:34:58.000Z'),
+    entry('dsh-chat-manager@1.5.13', '2026-10-16T14:05:23.291Z'),
+  ].join('\n')
+  assert.deepEqual(releaseAgeRefusal(`\u001b[31m${several}\u001b[39m`, Date.parse('2026-10-17T10:50:41.779Z')),
+    { availableAt: Date.parse('2026-10-18T10:34:58.000Z') })
+  assert.deepEqual(releaseAgeRefusal('[ERR_PNPM_NO_MATURE_MATCHING_VERSION] something unparseable', finishedAt), {})
+  // An accepted early version is not a refusal, although pnpm names the policy.
+  assert.equal(releaseAgeRefusal(ACCEPTED_EARLY, finishedAt), undefined)
+  assert.equal(releaseAgeRefusal('ERR_PNPM_FETCH_404 GET https://registry.npmjs.org/dsh-kimi-subscription: Not Found', finishedAt), undefined)
+  assert.equal(releaseAgeRefusal(undefined, finishedAt), undefined)
+})
+
+test('an update pnpm holds back for its release age is pending, not failed', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'kimi-version-cooling-'))
+  const ownPackageJsonUrl = await npmInstall(root, '1.3.8')
+  const calls = []
+  let registryRequests = 0
+  const manager = createKimiPluginManager({
+    env: { DSH_HOME: root },
+    ownPackageJsonUrl,
+    now: () => Date.parse('2026-10-17T10:50:38.464Z'),
+    fetchImpl: () => {
+      registryRequests += 1
+      return registryOk('1.3.9')(NPM_REGISTRY_LATEST_URL, {})
+    },
+    // pnpm 11 prints the refusal on stdout, exits 1, and leaves 1.3.8 installed.
+    runCommand: async call => {
+      calls.push(call)
+      return { code: 1, stdout: `Progress: resolved 1, reused 0, downloaded 0, added 0\n${TOO_NEW}`, stderr: '' }
+    },
+  })
+  await manager.read()
+  assert.deepEqual(await manager.update(), {
+    version: '1.3.9', profile: 'web', pending: true, availableAt: Date.parse('2026-10-18T10:35:58.769Z'),
+  })
+  assert.deepEqual(calls[0].args, ['add', '--save-exact', `${PACKAGE_NAME}@1.3.9`])
+  assert.equal((await manager.read()).current, '1.3.8')
+  assert.equal(registryRequests, 2, 'only the update itself re-read the registry; nothing was installed')
 })
 
 test('the package-manager resolver trusts only real pnpm entries and owned runtime roots', async () => {
@@ -369,6 +430,15 @@ test('loopback RPC exposes version and update endpoints with sanitized errors', 
     ok: true,
     value: { version: '0.4.0', profile: 'web' },
   })
+  // A held-back version is an answer, not an error.
+  const cooling = { version: '0.4.0', profile: 'web', pending: true, availableAt: Date.parse('2026-10-18T10:35:58.769Z') }
+  const holding = createKimiRpcHandler({}, {
+    pluginManager: {
+      async read() { return projection },
+      async update() { return cooling },
+    },
+  })
+  assert.deepEqual(await holding('plugin/update', {}, signal), { ok: true, value: cooling })
 
   const failing = createKimiRpcHandler({}, {
     pluginManager: {

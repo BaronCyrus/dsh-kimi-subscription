@@ -21,6 +21,7 @@ Do not edit the obsolete copy under `ClaudeLession`. On the owner's machine, the
 - The subscription route must remain separate from generic `kimi-coding` and Kimi Open Platform routes.
 - Never introduce a silent fallback to another provider or paid API.
 - Kimi Code subscriptions are for interactive use. Do not add batch automation, resale, or service-repackaging features.
+- The in-plugin update installs under the profile's own pnpm release-age policy. Never pass `--config.minimumReleaseAge` or edit `minimumReleaseAgeExclude` from the plugin. Bypassing the policy leaves a lockfile entry pnpm later rejects, and pnpm then refuses every plugin install in that profile until the version is 24 hours old. pnpm records an exact version it accepts early itself; a version it holds back is reported as pending.
 
 ## Security requirements
 

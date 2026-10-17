@@ -96,6 +96,18 @@ test('client registers a removable settings section and never stores credentials
   assert.doesNotMatch(source, /localStorage|sessionStorage|accessToken|refreshToken/u)
 })
 
+test('client reports an update pnpm still holds back as a wait, not as a failure or a success', async () => {
+  const source = await text('src/client.jsx')
+  for (const [key, placeholders] of [['versionCooling', ['{version}']], ['versionCoolingUntil', ['{version}', '{time}']]]) {
+    const copies = [...source.matchAll(new RegExp(`^  ${key}: '([^']*)',$`, 'gmu'))].map(match => match[1])
+    assert.equal(copies.length, 2, `expected Chinese and English copy for ${key}`)
+    for (const copy of copies) for (const placeholder of placeholders) assert.ok(copy.includes(placeholder), `${key} lacks ${placeholder}`)
+  }
+  // The pending answer is checked before anything reads it as installed.
+  assert.match(source, /if \(value\?\.pending === true\) \{\s*setPending\(value\)\s*return\s*\}\s*setUpdated\(value\)/u)
+  assert.match(source, /<p className="kimiSubscriptionHint" role="status">\{typeof pending\.availableAt === 'number'/u)
+})
+
 test('client keeps usage reset time readable in light and dark themes', async () => {
   const source = await text('src/client.jsx')
   const resetRule = source.match(/\.kimiUsageReset\{[^}]*\}/u)

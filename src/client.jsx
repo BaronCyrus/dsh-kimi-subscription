@@ -85,6 +85,8 @@ const zh = {
   versionUpdate: '更新插件',
   versionUpdating: '正在更新…',
   versionUpdateFailed: '更新失败，请重试或在终端手动更新。',
+  versionCooling: 'v{version} 发布不久，DSH 的 pnpm 要等新版本过了发布冷却期才会安装，请稍后再更新。',
+  versionCoolingUntil: 'v{version} 发布不久，DSH 的 pnpm 要等新版本过了发布冷却期才会安装，{time} 之后可以更新。',
   versionUpdated: '已更新到 v{version}。',
   versionUpdatedHint: '新版本需要重启 DSH 服务才能完全生效；仅刷新界面不会更新宿主进程中已加载的插件。',
   versionRestart: '重启 DSH 服务',
@@ -167,6 +169,8 @@ const en = {
   versionUpdate: 'Update plugin',
   versionUpdating: 'Updating…',
   versionUpdateFailed: 'The update failed. Try again or update manually in a terminal.',
+  versionCooling: 'v{version} was published recently. DSH’s pnpm installs a new version only after its release cooldown; update again later.',
+  versionCoolingUntil: 'v{version} was published recently. DSH’s pnpm installs a new version only after its release cooldown; update after {time}.',
   versionUpdated: 'Updated to v{version}.',
   versionUpdatedHint: 'The new version takes full effect after a DSH restart; refreshing the page alone does not reload the plugin inside the host process.',
   versionRestart: 'Restart DSH',
@@ -298,6 +302,8 @@ function VersionCard({ call, t }) {
   const [error, setError] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [updateFailed, setUpdateFailed] = useState(false)
+  /** A version pnpm still holds back under the profile's release-age policy. */
+  const [pending, setPending] = useState()
   const [updated, setUpdated] = useState()
   const [restartHint, setRestartHint] = useState(false)
   const generation = useRef(0)
@@ -323,7 +329,12 @@ function VersionCard({ call, t }) {
   const update = () => {
     setUpdating(true)
     setUpdateFailed(false)
+    setPending(undefined)
     void call('plugin/update').then(value => {
+      if (value?.pending === true) {
+        setPending(value)
+        return
+      }
       setUpdated(value)
       setRestartHint(false)
     }).catch(() => setUpdateFailed(true)).finally(() => setUpdating(false))
@@ -349,6 +360,9 @@ function VersionCard({ call, t }) {
     {showStatus && installKind === 'link' ? <p className="kimiSubscriptionHint">{t('versionLinked')}</p> : null}
     {showStatus && info.updateAvailable && installKind === 'unknown' ? <p className="kimiSubscriptionHint">{t('versionManual')}</p> : null}
     {updateFailed ? <p className="kimiSubscriptionError" role="alert">{t('versionUpdateFailed')}</p> : null}
+    {pending !== undefined ? <p className="kimiSubscriptionHint" role="status">{typeof pending.availableAt === 'number'
+      ? t('versionCoolingUntil').replace('{version}', pending.version).replace('{time}', formatReset(pending.availableAt))
+      : t('versionCooling').replace('{version}', pending.version)}</p> : null}
     {updated !== undefined ? <div className="kimiVersionUpdated" role="status">
       <div className="kimiSubscriptionStatus">{t('versionUpdated').replace('{version}', updated.version)}</div>
       <p className="kimiSubscriptionHint">{t('versionUpdatedHint')}</p>
