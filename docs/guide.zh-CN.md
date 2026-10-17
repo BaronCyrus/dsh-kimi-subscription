@@ -78,6 +78,8 @@ DSH 同一运行环境中只有一个生效的全局搜索提供方槽位；选�
 
 ## 更新与清理
 
+> **从 1.3.9 或更早版本升级：** 请在插件页填写 `dsh-kimi-subscription@1.3.10` 安装，不要点旧版设置页里的「更新插件」。旧按钮安装时会绕过 pnpm 的发布冷却期：装到的版本如果发布还不满 24 小时，这个 profile 在它满 24 小时之前就装不了其他插件。装好并重启后，按钮就换成了修好的版本，以后直接点即可。
+
 **更新。** 首选桌面应用 **设置 → Kimi 订阅 → 更新插件**：它会在 `desktop` profile 目录中用 DSH 自带的 pnpm 安装精确版本，并读回 `package.json` 确认版本真的落地，因此不会把「命令退出码为 0」当成更新成功。安装遵守 pnpm 的发布冷却策略，不会绕过它：默认情况下 pnpm 会直接装上新版本，并把它记进 profile 的 `minimumReleaseAgeExclude`；如果给 pnpm 配了更严格的策略，按钮会提示什么时候可以更新。本地 `link:` 开发安装不适用该按钮，应在对应 checkout 拉取代码、测试并重新构建。
 
 `desktop` profile 由 Electron 应用独占，`dsh plugin --profile desktop …` 会被 CLI 直接拒绝（`profile "desktop" is managed exclusively by the Electron application`），所以桌面版不要走 CLI。若你所在版本较旧、按钮报错，可在终端手动执行（pnpm 需 ≥ 11）：

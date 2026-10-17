@@ -99,6 +99,8 @@ Quick links: [Sign-in and credentials](docs/guide.en.md#sign-in-and-credentials)
 
 ## Update and uninstall
 
+> **Upgrading from 1.3.9 or earlier:** install `dsh-kimi-subscription@1.3.10` on the Plugins page instead of clicking **Update plugin** in the old settings card. The old button bypasses pnpm's release-age policy: if the version it installs is less than 24 hours old, the profile refuses every other plugin install until that version is 24 hours old. After the install and a restart, the button is the fixed one, and later updates can use it.
+
 **Update:** open **Settings → Kimi subscription → Update plugin**. It installs the exact version into the `desktop` profile with DSH's bundled pnpm and reads the version back from `package.json`, so a command that installed nothing never reads as success. The install keeps pnpm's release-age policy instead of overriding it: by default pnpm installs the version at once and records it in the profile's `minimumReleaseAgeExclude`; under a stricter pnpm policy the button says when the update can run. Manual recovery steps are in [Updates and cleanup](docs/guide.en.md#updates-and-cleanup).
 
 A local `link:` development install cannot use that button; pull, test, and rebuild its checkout instead of replacing the development link with an install command. The desktop app owns its `desktop` profile exclusively and the CLI refuses `dsh plugin --profile desktop …` (`profile "desktop" is managed exclusively by the Electron application`); `dsh plugin --profile <name> …` applies to non-desktop profiles only.
