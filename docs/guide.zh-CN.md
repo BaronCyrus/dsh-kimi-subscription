@@ -34,7 +34,7 @@ API Key 和 OAuth 凭据由 DSH Host 的凭据服务管理。OAuth 支持自动�
 
 ## 模型与订阅权限
 
-模型目录来自插件适配的 pi-ai Kimi Code provider。仓库记录的 `0.85.1` 目录包含 `k3`、`k3-256k`、`kimi-for-coding` 和 `kimi-for-coding-highspeed`；实际目录会随安装依赖变化。
+模型目录来自插件适配的 pi-ai Kimi Code provider。仓库记录的 `1.1.0` 目录包含 `k3`、`k3-256k`、`kimi-for-coding` 和 `kimi-for-coding-highspeed`；实际目录会随安装依赖变化。
 
 本仓库对 `kimi-for-coding` 的元数据作了本地修正：名称为 **Kimi K2.8 Preview**，上下文声明为 `1048576`，思考档位映射为 `low` / `high` / `max`。这些是插件的模型元数据，不是服务端容量或账号权限的保证，实现见 [pi-ai-runtime.js](../src/pi-ai-runtime.js)。
 

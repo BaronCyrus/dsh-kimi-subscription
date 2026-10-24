@@ -1,10 +1,19 @@
 import assert from 'node:assert/strict'
+import { existsSync, realpathSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
+import { createRequire } from 'node:module'
+import { join } from 'node:path'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 
 import semver from 'semver'
 
 const text = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
+
+/** The pi-ai directory Node resolves from a file, the way the host loads it. */
+const piAiDirectory = from => realpathSync(createRequire(from).resolve.paths('@earendil-works/pi-ai')
+  .map(path => join(path, '@earendil-works', 'pi-ai'))
+  .find(path => existsSync(join(path, 'package.json'))))
 
 /** The desktop installer's gate: every dsh peer must satisfy the runtime. */
 const incompatiblePeers = (manifest, runtime) => Object.entries(manifest.peerDependencies)
@@ -114,6 +123,18 @@ test('client keeps usage reset time readable in light and dark themes', async ()
   assert.ok(resetRule, 'expected a .kimiUsageReset style rule')
   assert.match(resetRule[0], /color:var\(--dsw-alias-label-tertiary\)/u)
   assert.doesNotMatch(resetRule[0], /label-dimmed/u)
+})
+
+// DeepSeek Harness.app ships one pi-ai, which its llm-pi-ai adapter and this
+// plugin both load. The development baseline must pair them the same way: the
+// 0.2.0-rc.1 adapter on pi-ai 0.85.1 beside the plugin's 0.87.1 dropped every
+// system prompt and tool from Kimi requests, and no test failed.
+test('the development baseline loads one pi-ai for the host adapter and the plugin', async () => {
+  const adapter = realpathSync(fileURLToPath(new URL('../node_modules/@deepseek-ai/dsh-llm-pi-ai/package.json', import.meta.url)))
+  const plugin = fileURLToPath(new URL('../src/pi-ai-runtime.js', import.meta.url))
+  assert.equal(piAiDirectory(adapter), piAiDirectory(plugin))
+  const installed = JSON.parse(await readFile(join(piAiDirectory(plugin), 'package.json'), 'utf8'))
+  assert.equal(installed.version, JSON.parse(await text('compatibility.json')).piAi)
 })
 
 test('host keeps subscription route separate from generic kimi-coding configuration', async () => {

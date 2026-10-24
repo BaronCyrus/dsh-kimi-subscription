@@ -36,7 +36,7 @@ DSH Host's credential service manages API keys and OAuth credentials. OAuth supp
 
 ## Models and subscription access
 
-The catalog comes from the pi-ai Kimi Code provider used by the plugin. The repository's recorded `0.85.1` catalog includes `k3`, `k3-256k`, `kimi-for-coding`, and `kimi-for-coding-highspeed`; the effective catalog depends on installed dependencies.
+The catalog comes from the pi-ai Kimi Code provider used by the plugin. The repository's recorded `1.1.0` catalog includes `k3`, `k3-256k`, `kimi-for-coding`, and `kimi-for-coding-highspeed`; the effective catalog depends on installed dependencies.
 
 The repository applies a local metadata correction for `kimi-for-coding`: the name **Kimi K2.8 Preview**, a declared context window of `1048576`, and a `low` / `high` / `max` thinking-level map. These are plugin metadata, not a guarantee of backend capacity or account access. See [pi-ai-runtime.js](../src/pi-ai-runtime.js).
 

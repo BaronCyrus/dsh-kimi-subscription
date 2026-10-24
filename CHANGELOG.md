@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Add a test that a Kimi request sent through the real host adapter carries the system prompt and the tools. It fails on the previous development baseline, where every request lost both.
+- Move the development baseline to the host packages DeepSeek Harness.app 0.2.1-rc.3 ships, read from the app bundle: `@deepseek-ai/dsh-*` 0.2.1-rc.3, Cordis 4.0.5, cordis-plugin-loader 1.0.6, cordis-plugin-include 1.0.10, schemastery 3.18.5, and pi-ai 1.1.0. As in the app, the llm-pi-ai adapter and the plugin now load one pi-ai copy, and a contract test keeps them on it.
+- The previous baseline gave the 0.2.0-rc.1 adapter pi-ai 0.85.1, from its own `^0.85.1`, and the plugin pi-ai 0.87.1. pi-ai 0.87.1 expects the system prompt and tools folded into the transcript, and 0.85.1 hands them over unfolded, so both were dropped without an error. The offline suite had run that pairing since 1.3.2, and no test looked at what a request carried. A clean install on DeepSeek Harness.app 0.2.1-rc.3 is not affected: DSH gives the plugin the app's only pi-ai, the same copy its adapter uses.
+- A desktop profile whose installed plugin still carries a `node_modules` copied from a local-path install runs the broken pairing: Kimi sees no tools and ends every turn after one reply. Uninstall and reinstall the plugin on the Plugins page, or delete that nested `node_modules`, then quit and reopen DSH. On the maintainer's desktop, the first session afterwards had `k3.1-pro-highspeed` call bash, glob, grep, and read.
+- No change to the published plugin code. `@deepseek-ai/dsh-invariants` leaves the development dependencies: no 0.2.1 package depends on it, and the app does not ship it.
+
 ## 1.4.0 — 2026-10-24
 
 - Add Kimi Code's new models **Kimi K3.1 Pro** (`k3.1-pro`) and **Kimi K3.1 Pro Highspeed** (`k3.1-pro-highspeed`) to the Kimi subscription group, ahead of `k3` as on Kimi's model page. No pi-ai release lists them yet, up to and including pi-ai 1.4.0, so the plugin adds them until the upstream catalog catches up, as it already patches K2.8 Preview. A model pi-ai does list is kept as pi-ai ships it.

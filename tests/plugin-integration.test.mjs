@@ -164,6 +164,52 @@ test('every advertised Kimi model resolves and prepares on the real host adapter
   }
 })
 
+// The adapter hands pi-ai the system prompt and tools beside the messages. If
+// the plugin's pi-ai and the adapter's disagree on that context shape, pi-ai
+// drops both without an error, and Kimi then answers every turn without tools.
+// A desktop install shadowed by a stale local copy ran exactly that pairing.
+test('a Kimi request through the host adapter carries the system prompt and tools', async () => {
+  const host = fakeContext()
+  await host.ctx.credentials.set(undefined, TEST_API_KEY)
+  apply(host.ctx)
+  const adapter = host.registered[0].adapter
+  const tool = {
+    name: 'bash',
+    description: 'Run a shell command.',
+    parameters: { type: 'object', properties: { command: { type: 'string' } }, required: ['command'] },
+  }
+  const requests = []
+  const realFetch = globalThis.fetch
+  globalThis.fetch = async (url, init) => {
+    requests.push({ url: String(url), body: JSON.parse(init.body) })
+    return new Response(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'offline test' } }), {
+      status: 400,
+      headers: { 'content-type': 'application/json' },
+    })
+  }
+  try {
+    const stream = adapter.stream({
+      provider: PROVIDER,
+      model: 'k3.1-pro',
+      system: 'Answer as the offline test agent.',
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'Is the repository up to date?' }] }],
+      tools: [tool],
+    })
+    // The canned 400 ends the stream; only the request that left matters here.
+    await (async () => { for await (const _ of stream); })().catch(() => {})
+  } finally {
+    globalThis.fetch = realFetch
+  }
+  assert.equal(requests.length, 1)
+  const { url, body } = requests[0]
+  assert.ok(url.startsWith('https://api.kimi.com/coding/v1/messages'), url)
+  assert.equal(body.model, 'k3.1-pro')
+  assert.deepEqual(body.system?.map(block => block.text), ['Answer as the offline test agent.'])
+  assert.deepEqual(body.tools?.map(entry => [entry.name, entry.description, entry.input_schema]), [
+    [tool.name, tool.description, tool.parameters],
+  ])
+})
+
 // Kimi rejects a K3.1 request that turns thinking off, so the picker must not
 // offer Off; with no effort chosen, Kimi applies the model default (max).
 test('the host adapter offers K3.1 Pro with low, high, and max effort only', async () => {
