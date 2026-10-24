@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.0 — 2026-10-24
 
 - Add Kimi Code's new models **Kimi K3.1 Pro** (`k3.1-pro`) and **Kimi K3.1 Pro Highspeed** (`k3.1-pro-highspeed`) to the Kimi subscription group, ahead of `k3` as on Kimi's model page. No pi-ai release lists them yet, up to and including pi-ai 1.4.0, so the plugin adds them until the upstream catalog catches up, as it already patches K2.8 Preview. A model pi-ai does list is kept as pi-ai ships it.
 - The entries follow the [Kimi Code model documentation](https://www.kimi.com/code/docs/kimi-code/models.html): the exact IDs (Kimi answers a mistyped ID with K2.8 Preview without thinking), a 1M context window, and `low` / `high` / `max` thinking. Thinking cannot be turned off on these models, and Kimi rejects a request that disables it with HTTP 400, so the model picker offers no Off level. With no level chosen, the request carries no thinking field and Kimi applies the model default, `max`. The wire protocol, endpoint, and output limit come from the installed catalog's `k3` entry, which every accepted pi-ai version ships with the same Anthropic-compatible settings. The cost field is zero: Kimi Code meters these models by plan quota, and DSH never reads it.

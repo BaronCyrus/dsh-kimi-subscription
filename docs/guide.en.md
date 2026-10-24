@@ -15,10 +15,10 @@ The repository declares a DSH peer range of `>=0.1.1-rc.2 <0.3.0-0`. Recorded ve
 For a reproducible install, add the version in that same field (substitute the version you want):
 
 ```text
-dsh-kimi-subscription@1.3.10
+dsh-kimi-subscription@1.4.0
 ```
 
-A `dsh-kimi-subscription-1.3.10.tgz` downloaded from [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) can be installed from its absolute path instead, which suits offline or audited setups.
+A `dsh-kimi-subscription-1.4.0.tgz` downloaded from [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) can be installed from its absolute path instead, which suits offline or audited setups.
 
 **Other profiles (for example a scratch profile):** `dsh plugin --profile <name> add dsh-kimi-subscription@latest` still works for non-desktop profiles. Do **not** use it for `desktop`: the CLI refuses it outright (`profile "desktop" is managed exclusively by the Electron application`). Use the Plugins page above instead.
 
@@ -82,7 +82,7 @@ The intended composed route sends Kimi models to Kimi search, Codex models to th
 
 ## Updates and cleanup
 
-> **Upgrading from 1.3.9 or earlier:** install `dsh-kimi-subscription@1.3.10` on the Plugins page instead of clicking **Update plugin** in the old settings card. The old button bypasses pnpm's release-age policy: if the version it installs is less than 24 hours old, the profile refuses every other plugin install until that version is 24 hours old. After the install and a restart, the button is the fixed one, and later updates can use it.
+> **Upgrading from 1.3.9 or earlier:** install `dsh-kimi-subscription@1.4.0` on the Plugins page instead of clicking **Update plugin** in the old settings card. The old button bypasses pnpm's release-age policy: if the version it installs is less than 24 hours old, the profile refuses every other plugin install until that version is 24 hours old. After the install and a restart, the button is the fixed one, and later updates can use it.
 
 **Update.** Prefer **Settings → Kimi subscription → Update plugin** in the desktop app: it installs the exact version into the `desktop` profile with DSH's bundled pnpm and reads the version back from `package.json`, so a command that installed nothing never reads as success. The install keeps pnpm's release-age policy instead of overriding it: by default pnpm installs the version at once and records it in the profile's `minimumReleaseAgeExclude`; under a stricter pnpm policy the button says when the update can run. Local `link:` development installs cannot use that button; pull, test, and rebuild the checkout instead.
 
@@ -90,7 +90,7 @@ The desktop app owns its `desktop` profile exclusively, and `dsh plugin --profil
 
 ```sh
 cd "$HOME/.dsh/profiles/desktop"    # Windows: cd "$env:USERPROFILE\.dsh\profiles\desktop"
-pnpm add --save-exact dsh-kimi-subscription@1.3.10
+pnpm add --save-exact dsh-kimi-subscription@1.4.0
 ```
 
 Do not add `--config.minimumReleaseAge=0`. With an exact version pnpm records the exception itself; the override leaves a lockfile entry that makes every later plugin install in the profile fail until the version is 24 hours old.
