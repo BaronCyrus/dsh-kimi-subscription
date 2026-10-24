@@ -40,6 +40,8 @@ The catalog comes from the pi-ai Kimi Code provider used by the plugin. The repo
 
 The repository applies a local metadata correction for `kimi-for-coding`: the name **Kimi K2.8 Preview**, a declared context window of `1048576`, and a `low` / `high` / `max` thinking-level map. These are plugin metadata, not a guarantee of backend capacity or account access. See [pi-ai-runtime.js](../src/pi-ai-runtime.js).
 
+Kimi Code's new **Kimi K3.1 Pro** (`k3.1-pro`) and **Kimi K3.1 Pro Highspeed** (`k3.1-pro-highspeed`) are not in the pi-ai catalog yet, so the plugin adds them from the [Kimi Code model documentation](https://www.kimi.com/code/docs/kimi-code/models.html), listed ahead of `k3`. They declare a context window of `1048576` and `low` / `high` / `max` thinking levels; with no level chosen, Kimi applies its default, `max`. Both models only support thinking mode and Kimi rejects a request that turns it off, so there is no Off level. The protocol, endpoint, and output limit come from the catalog's `k3`. Kimi recommends starting a new session rather than switching an existing one to K3.1 Pro.
+
 **The catalog is not an entitlement list.** Models are not filtered by membership tier. Consult the [Kimi Code model documentation](https://www.kimi.com/code/docs/kimi-code/models.html) and your account instead of relying on a static plan comparison that may become outdated.
 
 When the backend explicitly reports that a model is outside the account's access or plan, the plugin translates that rejection into a readable model-access message. Other `401`, authentication, and network failures require their own diagnosis; not every `401` means an insufficient tier.

@@ -6,7 +6,18 @@ import {
   createKimiSubscriptionProvider,
   explainKimiModelEntitlement,
   guardKimiStreamAuthRejection,
+  withK31ProModels,
 } from '../src/pi-ai-runtime.js'
+
+const LOW_HIGH_MAX = {
+  off: null,
+  minimal: null,
+  low: 'low',
+  medium: null,
+  high: 'high',
+  xhigh: null,
+  max: 'max',
+}
 
 test('provider keeps Kimi Code protocol behavior under a distinct DSH route', () => {
   const provider = createKimiSubscriptionProvider()
@@ -28,15 +39,78 @@ test('kimi-for-coding carries K2.8 Preview metadata', () => {
   assert.ok(model)
   assert.equal(model.name, 'Kimi K2.8 Preview')
   assert.equal(model.contextWindow, 1048576)
-  assert.deepEqual(model.thinkingLevelMap, {
-    off: null,
-    minimal: null,
-    low: 'low',
-    medium: null,
-    high: 'high',
-    xhigh: null,
-    max: 'max',
-  })
+  assert.deepEqual(model.thinkingLevelMap, LOW_HIGH_MAX)
+})
+
+// https://www.kimi.com/code/docs/kimi-code/models.html lists the K3.1 Pro
+// models first, by these exact IDs; a mistyped ID silently falls back to K2.8
+// Preview without thinking, so the IDs are pinned here.
+test('K3.1 Pro and K3.1 Pro Highspeed follow Kimi Code model documentation', () => {
+  const models = createKimiSubscriptionProvider().getModels()
+  const ids = models.map(model => model.id)
+  assert.equal(new Set(ids).size, ids.length, 'model ids must be unique')
+  assert.deepEqual(ids.slice(0, 3), ['k3.1-pro', 'k3.1-pro-highspeed', 'k3'])
+  const k3 = models.find(model => model.id === 'k3')
+  for (const [id, name] of [['k3.1-pro', 'Kimi K3.1 Pro'], ['k3.1-pro-highspeed', 'Kimi K3.1 Pro Highspeed']]) {
+    const model = models.find(entry => entry.id === id)
+    assert.equal(model.name, name)
+    assert.equal(model.provider, PROVIDER)
+    assert.equal(model.contextWindow, 1048576)
+    assert.deepEqual(model.thinkingLevelMap, LOW_HIGH_MAX)
+    assert.equal(model.reasoning, true)
+    assert.deepEqual(model.cost, { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 })
+    // The wire protocol, endpoint, and limits are k3's.
+    assert.equal(model.api, k3.api)
+    assert.equal(model.baseUrl, k3.baseUrl)
+    assert.deepEqual(model.compat, k3.compat)
+    assert.deepEqual(model.input, k3.input)
+    assert.equal(model.maxTokens, k3.maxTokens)
+  }
+})
+
+test('K3.1 models are added only while the installed catalog lacks them', () => {
+  const k3 = { id: 'k3', name: 'Kimi K3', api: 'anthropic-messages', contextWindow: 1048576 }
+  const upstream = { id: 'k3.1-pro', name: 'Upstream K3.1 Pro', api: 'anthropic-messages', contextWindow: 1048576 }
+  const merged = withK31ProModels([upstream, k3])
+  assert.deepEqual(merged.map(model => model.id), ['k3.1-pro', 'k3.1-pro-highspeed', 'k3'])
+  assert.equal(merged[0], upstream, 'an entry pi-ai ships is kept as it is')
+  assert.equal(merged[1].name, 'Kimi K3.1 Pro Highspeed')
+
+  // Without k3 there is no Kimi Code protocol entry to start from.
+  const legacy = [{ id: 'kimi-for-coding' }]
+  assert.equal(withK31ProModels(legacy), legacy)
+})
+
+test('a K3.1 Pro request names its model and never disables thinking', async () => {
+  const provider = createKimiSubscriptionProvider()
+  const model = provider.getModels().find(entry => entry.id === 'k3.1-pro')
+  const requests = []
+  const fetch = async (url, init) => {
+    requests.push({ url: String(url), body: JSON.parse(init.body) })
+    return new Response(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'offline test' } }), {
+      status: 400,
+      headers: { 'content-type': 'application/json' },
+    })
+  }
+  const context = { messages: [{ role: 'user', content: 'hello', timestamp: 0 }] }
+  for (const reasoning of [undefined, 'low', 'high', 'max']) {
+    const options = { apiKey: 'FAKE_SUBSCRIPTION_KEY_FOR_TESTS', fetch, maxRetries: 0, ...reasoning === undefined ? {} : { reasoning } }
+    const events = []
+    for await (const event of provider.streamSimple(model, context, options)) events.push(event)
+    assert.equal(events.at(-1).type, 'error')
+  }
+  assert.equal(requests.length, 4)
+  for (const { url, body } of requests) {
+    assert.ok(url.startsWith('https://api.kimi.com/coding/v1/messages'), url)
+    assert.equal(body.model, 'k3.1-pro')
+  }
+  // No level chosen: no thinking field at all, so Kimi applies the model default (max).
+  assert.equal(requests[0].body.thinking, undefined)
+  assert.equal(requests[0].body.output_config, undefined)
+  for (const [index, effort] of [[1, 'low'], [2, 'high'], [3, 'max']]) {
+    assert.equal(requests[index].body.thinking.type, 'adaptive')
+    assert.deepEqual(requests[index].body.output_config, { effort })
+  }
 })
 
 async function* failingStream(error) { throw error }
@@ -100,6 +174,10 @@ test('a plan rejection is explained instead of being read as an invalid key', ()
   for (const pattern of HOST_FAILURE_PATTERNS) {
     assert.doesNotMatch(explained, pattern, `the replacement must not match ${String(pattern)}`)
   }
+  // A dotted ID is named whole, without the period that ends Kimi's sentence.
+  const highspeed = explainKimiModelEntitlement(kimiPlanRejection('k3.1-pro-highspeed'))
+  assert.match(highspeed, /「k3\.1-pro-highspeed」/u)
+  assert.match(highspeed, /"k3\.1-pro-highspeed";/u)
 })
 
 test('only a plan rejection is rewritten', () => {

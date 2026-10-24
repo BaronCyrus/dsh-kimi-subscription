@@ -69,12 +69,10 @@ function explainEntitlementEvent(event) {
   return event
 }
 
-// Kimi Code upgraded `kimi-for-coding` in place to K2.8 Preview: 1M context
-// for all membership tiers and low/high/max thinking levels (default max).
-// pi-ai's bundled catalog still describes K2.7 Code, so patch the stale
-// fields until the upstream catalog catches up.
-// https://www.kimi.com/code/docs/kimi-code/models.html
-const K28_PREVIEW_THINKING_LEVEL_MAP = Object.freeze({
+// The low/high/max effort levels Kimi Code takes. `off` stays unmapped, so
+// pi-ai omits the thinking field when no level is chosen and Kimi applies the
+// model's own default instead of receiving a request that disables thinking.
+const LOW_HIGH_MAX_THINKING_LEVEL_MAP = Object.freeze({
   off: null,
   minimal: null,
   low: 'low',
@@ -83,14 +81,54 @@ const K28_PREVIEW_THINKING_LEVEL_MAP = Object.freeze({
   xhigh: null,
   max: 'max',
 })
+
+// Kimi Code upgraded `kimi-for-coding` in place to K2.8 Preview: 1M context
+// for all membership tiers and low/high/max thinking levels (default max).
+// pi-ai's bundled catalog still describes K2.7 Code, so patch the stale
+// fields until the upstream catalog catches up.
+// https://www.kimi.com/code/docs/kimi-code/models.html
 const K28_PREVIEW_MODEL_PATCH = Object.freeze({
   name: 'Kimi K2.8 Preview',
   contextWindow: 1048576,
-  thinkingLevelMap: K28_PREVIEW_THINKING_LEVEL_MAP,
+  thinkingLevelMap: LOW_HIGH_MAX_THINKING_LEVEL_MAP,
 })
 
 const withK28PreviewMetadata = model =>
   model.id === 'kimi-for-coding' ? Object.freeze({ ...model, ...K28_PREVIEW_MODEL_PATCH }) : model
+
+// Kimi Code added K3.1 Pro and K3.1 Pro Highspeed, which no pi-ai release
+// lists yet. Both are K3-series models on the same endpoint as `k3`, so each
+// starts from the installed catalog's `k3` entry, which carries the protocol
+// pi-ai speaks to Kimi Code. Kimi's model page gives the rest: up to 1M
+// context and low/high/max thinking (default max), which cannot be turned off;
+// Kimi answers a request that disables it with HTTP 400. Kimi Code meters
+// these by plan quota and lists no per-token price, so their cost is zero;
+// DSH never reads it.
+// https://www.kimi.com/code/docs/kimi-code/models.html
+const K31_PRO_MODELS = Object.freeze([
+  Object.freeze({ id: 'k3.1-pro', name: 'Kimi K3.1 Pro' }),
+  Object.freeze({ id: 'k3.1-pro-highspeed', name: 'Kimi K3.1 Pro Highspeed' }),
+])
+const K31_PRO_MODEL_PATCH = Object.freeze({
+  contextWindow: 1048576,
+  thinkingLevelMap: LOW_HIGH_MAX_THINKING_LEVEL_MAP,
+  cost: Object.freeze({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }),
+})
+
+/**
+ * Add the K3.1 Pro models the installed catalog does not list yet.
+ * @param catalog - pi-ai's Kimi Code models, in catalog order.
+ * @returns the catalog with each missing K3.1 model ahead of `k3`, the order
+ *   of Kimi's model page; unchanged when there is no `k3` to start from.
+ */
+export function withK31ProModels(catalog) {
+  const k3 = catalog.findIndex(model => model.id === 'k3')
+  if (k3 === -1) return catalog
+  const missing = K31_PRO_MODELS
+    .filter(entry => !catalog.some(model => model.id === entry.id))
+    .map(entry => ({ ...catalog[k3], ...K31_PRO_MODEL_PATCH, ...entry }))
+  return [...catalog.slice(0, k3), ...missing, ...catalog.slice(k3)]
+}
 
 /**
  * Observe a pi-ai event stream and report an upstream authentication
@@ -150,7 +188,7 @@ export function createKimiSubscriptionProvider({ onAuthRejected, oauth, fetchImp
     ...fetchImpl === undefined ? {} : { fetchImpl },
     ...oauthHost === undefined ? {} : { oauthHost },
   })
-  const models = Object.freeze(base.getModels().map(model => Object.freeze({
+  const models = Object.freeze(withK31ProModels(base.getModels()).map(model => Object.freeze({
     ...withK28PreviewMetadata(model),
     provider: PROVIDER,
   })))

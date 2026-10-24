@@ -163,3 +163,23 @@ test('every advertised Kimi model resolves and prepares on the real host adapter
     assert.equal(typeof prepared.stream, 'function')
   }
 })
+
+// Kimi rejects a K3.1 request that turns thinking off, so the picker must not
+// offer Off; with no effort chosen, Kimi applies the model default (max).
+test('the host adapter offers K3.1 Pro with low, high, and max effort only', async () => {
+  const host = fakeContext()
+  await host.ctx.credentials.set(undefined, TEST_API_KEY)
+  apply(host.ctx)
+  const adapter = host.registered[0].adapter
+  const models = await adapter.listModels(PROVIDER)
+  assert.deepEqual(models.slice(0, 2).map(model => [model.id, model.name]), [
+    ['k3.1-pro', 'Kimi K3.1 Pro'],
+    ['k3.1-pro-highspeed', 'Kimi K3.1 Pro Highspeed'],
+  ])
+  for (const id of ['k3.1-pro', 'k3.1-pro-highspeed']) {
+    const resolved = await adapter.resolveModel(PROVIDER, id)
+    assert.equal(resolved.context.contextWindow, 1048576)
+    assert.deepEqual(resolved.reasoning.efforts.map(effort => effort.id), ['low', 'high', 'max'])
+    assert.equal(resolved.reasoning.defaultEffort, undefined)
+  }
+})
