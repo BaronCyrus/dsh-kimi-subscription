@@ -145,3 +145,14 @@ See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for implementation referenc
 ## License
 
 [MIT](LICENSE)
+
+## Support the author
+
+This plugin is free and open source, and tips are entirely optional. If it saved you some hassle using your Kimi Code subscription in DSH, a tip helps keep it current with new models and new DSH releases.
+
+<table align="center">
+  <tr>
+    <td align="center"><img src="docs/assets/sponsor-wechat.png" width="200" alt="WeChat tip code"><br><b>WeChat</b></td>
+    <td align="center"><img src="docs/assets/sponsor-alipay.png" width="200" alt="Alipay payment code"><br><b>Alipay</b></td>
+  </tr>
+</table>
