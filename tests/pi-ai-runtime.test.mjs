@@ -64,7 +64,8 @@ test('the model list follows Kimi Code model documentation', () => {
 test('K2.7 Code Highspeed offers no thinking level and never disables thinking', async () => {
   const provider = createKimiSubscriptionProvider()
   const model = provider.getModels().find(entry => entry.id === 'kimi-for-coding-highspeed')
-  assert.equal(model.reasoning, true)
+  // No selectable effort capability; the backend still always thinks.
+  assert.equal(model.reasoning, false)
   assert.deepEqual(model.thinkingLevelMap, {
     off: null,
     minimal: null,
@@ -84,16 +85,19 @@ test('K2.7 Code Highspeed offers no thinking level and never disables thinking',
   }
   const context = { messages: [{ role: 'user', content: 'hello', timestamp: 0 }] }
   const options = { apiKey: 'FAKE_SUBSCRIPTION_KEY_FOR_TESTS', fetch, maxRetries: 0 }
-  const events = []
-  for await (const event of provider.streamSimple(model, context, options)) events.push(event)
-  assert.equal(events.at(-1).type, 'error')
-  assert.equal(requests.length, 1)
-  const { url, body } = requests[0]
-  assert.ok(url.startsWith('https://api.kimi.com/coding/v1/messages'), url)
-  assert.equal(body.model, 'kimi-for-coding-highspeed')
-  // No thinking field, so Kimi applies the model's own setting: thinking on.
-  assert.equal(body.thinking, undefined)
-  assert.equal(body.output_config, undefined)
+  for (const reasoning of [undefined, 'off', 'high', 'max']) {
+    const events = []
+    for await (const event of provider.streamSimple(model, context, { ...options, reasoning })) events.push(event)
+    assert.equal(events.at(-1).type, 'error')
+  }
+  assert.equal(requests.length, 4)
+  for (const { url, body } of requests) {
+    assert.ok(url.startsWith('https://api.kimi.com/coding/v1/messages'), url)
+    assert.equal(body.model, 'kimi-for-coding-highspeed')
+    // Even forced pi-ai options cannot disable the backend's thinking.
+    assert.equal(body.thinking, undefined)
+    assert.equal(body.output_config, undefined)
+  }
 })
 
 // https://www.kimi.com/code/docs/kimi-code/models.html lists the K3.1 Pro

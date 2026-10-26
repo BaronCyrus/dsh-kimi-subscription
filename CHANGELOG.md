@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fix desktop catalog loading failing with `INVALID_MODEL_REASONING` for `kimi-for-coding-highspeed`. Advertise no selectable reasoning capability instead of an empty effort list; retain all six models and preserve the backend's always-on thinking by omitting wire thinking controls. Add a real DSH adapter catalog regression test. This does not disable Kimi's reasoning.
+
 - Calibrate the model list against Kimi's documentation: the [Kimi Code model page](https://www.kimi.com/code/docs/kimi-code/models.html), which gives the IDs this route takes, and the Open Platform [pricing page](https://platform.kimi.com/docs/pricing/chat). The six IDs, their order, and their context windows already matched the Kimi Code page. `kimi-for-coding-highspeed` did not, and a test now pins the whole list.
 - `kimi-for-coding-highspeed` is now named **Kimi K2.7 Code Highspeed**, the model version both pages give it. pi-ai's catalog calls it "Kimi For Coding HighSpeed".
 - Fix `kimi-for-coding-highspeed` being served as K2.8 Preview without thinking. K2.7 Code Highspeed always thinks and takes no effort level, but pi-ai's catalog gives it no thinking map. With no level chosen, pi-ai therefore sent `"thinking": {"type": "disabled"}`, and Kimi serves a request that disables thinking with K2.8 Preview without thinking. Off did the same, and Minimal through High sent an effort this model does not adjust. Every level is now marked unsupported: the Effort menu offers only Default, and the request carries no thinking field, so Kimi applies the model's own setting.
