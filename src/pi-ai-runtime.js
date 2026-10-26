@@ -97,11 +97,15 @@ const K28_PREVIEW_MODEL_PATCH = Object.freeze({
 // always thinks and takes no effort level. pi-ai's catalog gives it no
 // thinking map, so pi-ai offers Off through High and, with no level chosen,
 // sends a request that disables thinking; Kimi serves that request with K2.8
-// Preview without thinking. With every level unsupported, the picker offers
-// only the provider default and the request carries no thinking field.
+// Preview without thinking. DSH uses `reasoning` to advertise selectable
+// efforts, not whether the backend thinks. Mark that capability unavailable:
+// reasoning:true plus an all-null map becomes an empty efforts array, which
+// DSH rejects for the entire catalog. Keep the null map as a wire safeguard;
+// requests still omit thinking and Kimi applies its always-on default.
 // https://www.kimi.com/code/docs/kimi-code/models.html
 const K27_CODE_HIGHSPEED_MODEL_PATCH = Object.freeze({
   name: 'Kimi K2.7 Code Highspeed',
+  reasoning: false,
   thinkingLevelMap: Object.freeze({
     off: null,
     minimal: null,

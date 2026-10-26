@@ -70,6 +70,18 @@ test('plugin registers an isolated Kimi subscription group and loopback auth RPC
   assert.deepEqual(host.registered.map(item => item.providers), [[PROVIDER]])
   const adapter = host.registered[0].adapter
   assert.deepEqual(adapter.providerInfo(PROVIDER), { id: PROVIDER, name: DISPLAY_NAME })
+  // Exercise the real host adapter, not just pi-ai's raw model descriptors.
+  // Every advertised reasoning capability must have at least one effort;
+  // otherwise DSH rejects the entire provider catalog.
+  const catalog = await Promise.all([
+    'k3.1-pro', 'k3.1-pro-highspeed', 'k3', 'k3-256k',
+    'kimi-for-coding', 'kimi-for-coding-highspeed',
+  ].map(id => adapter.resolveModel(PROVIDER, id)))
+  assert.equal(catalog.length, 6)
+  for (const model of catalog) {
+    assert.ok(model.reasoning === undefined || model.reasoning.efforts.length > 0, model.id)
+  }
+  assert.equal(catalog.find(model => model.id === 'kimi-for-coding-highspeed').reasoning, undefined)
   const retryPolicy = adapter.providerRetryPolicy(PROVIDER)
   assert.equal(retryPolicy.mode, 'normal')
   assert.equal(retryPolicy.maxRetries, 2)
@@ -241,7 +253,7 @@ test('the host adapter offers K2.7 Code Highspeed with the default effort only',
   const resolved = await adapter.resolveModel(PROVIDER, 'kimi-for-coding-highspeed')
   assert.equal(resolved.name, 'Kimi K2.7 Code Highspeed')
   assert.equal(resolved.context.contextWindow, 262144)
-  assert.deepEqual(resolved.reasoning, { efforts: [] })
+  assert.equal(resolved.reasoning, undefined)
 
   const requests = []
   const realFetch = globalThis.fetch
