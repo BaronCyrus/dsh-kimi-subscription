@@ -38,9 +38,16 @@ DSH Host's credential service manages API keys and OAuth credentials. OAuth supp
 
 The catalog comes from the pi-ai Kimi Code provider used by the plugin. The repository's recorded `1.1.0` catalog includes `k3`, `k3-256k`, `kimi-for-coding`, and `kimi-for-coding-highspeed`; the effective catalog depends on installed dependencies.
 
-The repository applies a local metadata correction for `kimi-for-coding`: the name **Kimi K2.8 Preview**, a declared context window of `1048576`, and a `low` / `high` / `max` thinking-level map. These are plugin metadata, not a guarantee of backend capacity or account access. See [pi-ai-runtime.js](../src/pi-ai-runtime.js).
+The repository corrects two catalog models locally, following the [Kimi Code model documentation](https://www.kimi.com/code/docs/kimi-code/models.html):
 
-Kimi Code's new **Kimi K3.1 Pro** (`k3.1-pro`) and **Kimi K3.1 Pro Highspeed** (`k3.1-pro-highspeed`) are not in the pi-ai catalog yet, so the plugin adds them from the [Kimi Code model documentation](https://www.kimi.com/code/docs/kimi-code/models.html), listed ahead of `k3`. They declare a context window of `1048576` and `low` / `high` / `max` thinking levels; with no level chosen, Kimi applies its default, `max`. Both models only support thinking mode and Kimi rejects a request that turns it off, so there is no Off level. The protocol, endpoint, and output limit come from the catalog's `k3`. Kimi recommends starting a new session rather than switching an existing one to K3.1 Pro.
+- `kimi-for-coding`: the name **Kimi K2.8 Preview**, a declared context window of `1048576`, and a `low` / `high` / `max` thinking-level map.
+- `kimi-for-coding-highspeed`: the name **Kimi K2.7 Code Highspeed**. This model always thinks and takes no thinking effort, so its Effort menu offers only **Default** and the request carries no thinking field. Kimi serves a request that turns thinking off with K2.8 Preview without thinking.
+
+These are plugin metadata, not a guarantee of backend capacity or account access. See [pi-ai-runtime.js](../src/pi-ai-runtime.js).
+
+Kimi Code's new **Kimi K3.1 Pro** (`k3.1-pro`) and **Kimi K3.1 Pro Highspeed** (`k3.1-pro-highspeed`) are not in the pi-ai catalog yet, so the plugin adds them from the [Kimi Code model documentation](https://www.kimi.com/code/docs/kimi-code/models.html), listed ahead of `k3`. They declare a context window of `1048576` and `low` / `high` / `max` thinking levels; with no level chosen, Kimi applies its default, `high`. Both models only support thinking mode and Kimi rejects a request that turns it off, so there is no Off level. The protocol, endpoint, and output limit come from the catalog's `k3`. Kimi recommends starting a new session rather than switching an existing one to K3.1 Pro.
+
+The Kimi Open Platform [pricing page](https://platform.kimi.com/docs/pricing/chat) uses other model IDs, such as `kimi-k3.1-pro` and `kimi-k2.7-code-highspeed`, with per-token prices that apply only to the pay-as-you-go Open Platform. Kimi Code meters by plan quota and serves an ID outside its model table with K2.8 Preview without thinking, so the plugin uses only the IDs in the Kimi Code model documentation.
 
 **The catalog is not an entitlement list.** Models are not filtered by membership tier. Consult the [Kimi Code model documentation](https://www.kimi.com/code/docs/kimi-code/models.html) and your account instead of relying on a static plan comparison that may become outdated.
 
@@ -75,6 +82,8 @@ The intended composed route sends Kimi models to Kimi search, Codex models to th
 **Device authorization failed.** Follow the distinct denied, expired-code, and network failure messages. Start a new flow for an expired code, or check Host connectivity for a network failure. Do not classify every failure as an invalid key.
 
 **Sign-in and usage work, but a model fails.** Usage reads and model calls are separate requests. Check for an explicit model-access rejection and try a model the account can use. For authentication failures, inspect the credential type and session state instead.
+
+**K2.7 Code Highspeed reports `does not support reasoning effort`.** This model takes no thinking effort. If a conversation picked a level for it earlier, choose **Default** in the model picker's Effort menu.
 
 **No quota badge.** Select a model from `Kimi subscription`, then refresh usage in Settings. Share only a sanitized error, never the raw account response.
 

@@ -36,9 +36,16 @@ API Key 和 OAuth 凭据由 DSH Host 的凭据服务管理。OAuth 支持自动�
 
 模型目录来自插件适配的 pi-ai Kimi Code provider。仓库记录的 `1.1.0` 目录包含 `k3`、`k3-256k`、`kimi-for-coding` 和 `kimi-for-coding-highspeed`；实际目录会随安装依赖变化。
 
-本仓库对 `kimi-for-coding` 的元数据作了本地修正：名称为 **Kimi K2.8 Preview**，上下文声明为 `1048576`，思考档位映射为 `low` / `high` / `max`。这些是插件的模型元数据，不是服务端容量或账号权限的保证，实现见 [pi-ai-runtime.js](../src/pi-ai-runtime.js)。
+本仓库按 [Kimi Code 模型文档](https://www.kimi.com/code/docs/kimi-code/models.html) 对目录里两个模型的元数据作了本地修正：
 
-Kimi Code 新上线的 **Kimi K3.1 Pro**（`k3.1-pro`）和 **Kimi K3.1 Pro Highspeed**（`k3.1-pro-highspeed`）还不在 pi-ai 目录里，插件按 [Kimi Code 模型文档](https://www.kimi.com/code/docs/kimi-code/models.html) 补上，排在 `k3` 前面。上下文声明为 `1048576`，思考档位为 `low` / `high` / `max`；不选档位时由 Kimi 使用默认的 `max`。这两个模型只支持思考模式，关闭思考的请求会被 Kimi 拒绝，所以档位里没有「关闭」。协议、端点和输出上限沿用目录里的 `k3`。Kimi 建议从其他模型改用 K3.1 Pro 时新开会话。
+- `kimi-for-coding`：名称为 **Kimi K2.8 Preview**，上下文声明为 `1048576`，思考档位映射为 `low` / `high` / `max`。
+- `kimi-for-coding-highspeed`：名称为 **Kimi K2.7 Code Highspeed**。这个模型始终开启思考，也不能调整思考程度，所以「推理等级」里只有 **Default**，请求不带思考字段。Kimi 会把关闭思考的请求交给 K2.8 Preview 无思考版处理。
+
+这些是插件的模型元数据，不是服务端容量或账号权限的保证，实现见 [pi-ai-runtime.js](../src/pi-ai-runtime.js)。
+
+Kimi Code 新上线的 **Kimi K3.1 Pro**（`k3.1-pro`）和 **Kimi K3.1 Pro Highspeed**（`k3.1-pro-highspeed`）还不在 pi-ai 目录里，插件按 [Kimi Code 模型文档](https://www.kimi.com/code/docs/kimi-code/models.html) 补上，排在 `k3` 前面。上下文声明为 `1048576`，思考档位为 `low` / `high` / `max`；不选档位时由 Kimi 使用默认的 `high`。这两个模型只支持思考模式，关闭思考的请求会被 Kimi 拒绝，所以档位里没有「关闭」。协议、端点和输出上限沿用目录里的 `k3`。Kimi 建议从其他模型改用 K3.1 Pro 时新开会话。
+
+Kimi 开放平台的 [定价页](https://platform.kimi.com/docs/pricing/chat) 用的是另一套模型 ID（如 `kimi-k3.1-pro`、`kimi-k2.7-code-highspeed`），价格按 token 计，只适用于按量计费的 Open Platform。Kimi Code 按套餐额度计量，Kimi Code 模型文档表格以外的 ID 会被兜底到 K2.8 Preview 无思考版，所以插件只使用 Kimi Code 模型文档里的 ID。
 
 **目录不是授权清单。** 插件不按会员档位过滤模型。不同模型与上下文能力的权益应以 [Kimi Code 模型文档](https://www.kimi.com/code/docs/kimi-code/models.html) 和当前账号为准，避免依赖容易过期的套餐对照表。
 
@@ -73,6 +80,8 @@ DSH 同一运行环境中只有一个生效的全局搜索提供方槽位；选�
 **设备授权失败。** 按页面区分拒绝授权、设备码过期、网络失败等状态；过期时重新发起，网络失败时检查 DSH Host 的连接。不要把所有失败归为密钥无效。
 
 **能登录、能读额度，但模型失败。** 额度读取与模型调用是不同请求。先看错误是否明确提示模型权限；尝试账号有权使用的模型。仍为认证失败时，再检查凭据来源与登录状态。
+
+**K2.7 Code Highspeed 报 `does not support reasoning effort`。** 这个模型不能调整思考程度。旧会话里给它选过推理等级的，在模型选择器的「推理等级」里改选 **Default** 即可。
 
 **没有额度徽章。** 确认选择的是 `Kimi subscription` 分组，然后到设置页手动刷新用量。记录脱敏后的错误，不要提交原始账号响应。
 

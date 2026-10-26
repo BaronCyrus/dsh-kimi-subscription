@@ -42,6 +42,60 @@ test('kimi-for-coding carries K2.8 Preview metadata', () => {
   assert.deepEqual(model.thinkingLevelMap, LOW_HIGH_MAX)
 })
 
+// https://www.kimi.com/code/docs/kimi-code/models.html lists these six IDs,
+// in this order, with these model versions and context windows. The Open
+// Platform's IDs (`kimi-k3.1-pro`, `kimi-k2.7-code-highspeed`, ...) are not
+// Kimi Code's: Kimi Code serves an ID outside its table with K2.8 Preview
+// without thinking.
+test('the model list follows Kimi Code model documentation', () => {
+  const models = createKimiSubscriptionProvider().getModels()
+  assert.deepEqual(models.map(model => [model.id, model.name, model.contextWindow]), [
+    ['k3.1-pro', 'Kimi K3.1 Pro', 1048576],
+    ['k3.1-pro-highspeed', 'Kimi K3.1 Pro Highspeed', 1048576],
+    ['k3', 'Kimi K3', 1048576],
+    ['k3-256k', 'Kimi K3-256K', 262144],
+    ['kimi-for-coding', 'Kimi K2.8 Preview', 1048576],
+    ['kimi-for-coding-highspeed', 'Kimi K2.7 Code Highspeed', 262144],
+  ])
+})
+
+// Kimi Code serves a request that disables thinking on K2.7 Code Highspeed
+// with K2.8 Preview without thinking, and this model takes no effort level.
+test('K2.7 Code Highspeed offers no thinking level and never disables thinking', async () => {
+  const provider = createKimiSubscriptionProvider()
+  const model = provider.getModels().find(entry => entry.id === 'kimi-for-coding-highspeed')
+  assert.equal(model.reasoning, true)
+  assert.deepEqual(model.thinkingLevelMap, {
+    off: null,
+    minimal: null,
+    low: null,
+    medium: null,
+    high: null,
+    xhigh: null,
+    max: null,
+  })
+  const requests = []
+  const fetch = async (url, init) => {
+    requests.push({ url: String(url), body: JSON.parse(init.body) })
+    return new Response(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'offline test' } }), {
+      status: 400,
+      headers: { 'content-type': 'application/json' },
+    })
+  }
+  const context = { messages: [{ role: 'user', content: 'hello', timestamp: 0 }] }
+  const options = { apiKey: 'FAKE_SUBSCRIPTION_KEY_FOR_TESTS', fetch, maxRetries: 0 }
+  const events = []
+  for await (const event of provider.streamSimple(model, context, options)) events.push(event)
+  assert.equal(events.at(-1).type, 'error')
+  assert.equal(requests.length, 1)
+  const { url, body } = requests[0]
+  assert.ok(url.startsWith('https://api.kimi.com/coding/v1/messages'), url)
+  assert.equal(body.model, 'kimi-for-coding-highspeed')
+  // No thinking field, so Kimi applies the model's own setting: thinking on.
+  assert.equal(body.thinking, undefined)
+  assert.equal(body.output_config, undefined)
+})
+
 // https://www.kimi.com/code/docs/kimi-code/models.html lists the K3.1 Pro
 // models first, by these exact IDs; a mistyped ID silently falls back to K2.8
 // Preview without thinking, so the IDs are pinned here.
@@ -104,7 +158,7 @@ test('a K3.1 Pro request names its model and never disables thinking', async () 
     assert.ok(url.startsWith('https://api.kimi.com/coding/v1/messages'), url)
     assert.equal(body.model, 'k3.1-pro')
   }
-  // No level chosen: no thinking field at all, so Kimi applies the model default (max).
+  // No level chosen: no thinking field at all, so Kimi applies the model default (high).
   assert.equal(requests[0].body.thinking, undefined)
   assert.equal(requests[0].body.output_config, undefined)
   for (const [index, effort] of [[1, 'low'], [2, 'high'], [3, 'max']]) {

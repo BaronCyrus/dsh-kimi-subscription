@@ -93,14 +93,41 @@ const K28_PREVIEW_MODEL_PATCH = Object.freeze({
   thinkingLevelMap: LOW_HIGH_MAX_THINKING_LEVEL_MAP,
 })
 
-const withK28PreviewMetadata = model =>
-  model.id === 'kimi-for-coding' ? Object.freeze({ ...model, ...K28_PREVIEW_MODEL_PATCH }) : model
+// Kimi Code serves `kimi-for-coding-highspeed` as K2.7 Code Highspeed, which
+// always thinks and takes no effort level. pi-ai's catalog gives it no
+// thinking map, so pi-ai offers Off through High and, with no level chosen,
+// sends a request that disables thinking; Kimi serves that request with K2.8
+// Preview without thinking. With every level unsupported, the picker offers
+// only the provider default and the request carries no thinking field.
+// https://www.kimi.com/code/docs/kimi-code/models.html
+const K27_CODE_HIGHSPEED_MODEL_PATCH = Object.freeze({
+  name: 'Kimi K2.7 Code Highspeed',
+  thinkingLevelMap: Object.freeze({
+    off: null,
+    minimal: null,
+    low: null,
+    medium: null,
+    high: null,
+    xhigh: null,
+    max: null,
+  }),
+})
+
+const KIMI_CODE_MODEL_PATCHES = new Map([
+  ['kimi-for-coding', K28_PREVIEW_MODEL_PATCH],
+  ['kimi-for-coding-highspeed', K27_CODE_HIGHSPEED_MODEL_PATCH],
+])
+
+const withKimiCodeMetadata = model => {
+  const patch = KIMI_CODE_MODEL_PATCHES.get(model.id)
+  return patch === undefined ? model : Object.freeze({ ...model, ...patch })
+}
 
 // Kimi Code added K3.1 Pro and K3.1 Pro Highspeed, which no pi-ai release
 // lists yet. Both are K3-series models on the same endpoint as `k3`, so each
 // starts from the installed catalog's `k3` entry, which carries the protocol
 // pi-ai speaks to Kimi Code. Kimi's model page gives the rest: up to 1M
-// context and low/high/max thinking (default max), which cannot be turned off;
+// context and low/high/max thinking (default high), which cannot be turned off;
 // Kimi answers a request that disables it with HTTP 400. Kimi Code meters
 // these by plan quota and lists no per-token price, so their cost is zero;
 // DSH never reads it.
@@ -189,7 +216,7 @@ export function createKimiSubscriptionProvider({ onAuthRejected, oauth, fetchImp
     ...oauthHost === undefined ? {} : { oauthHost },
   })
   const models = Object.freeze(withK31ProModels(base.getModels()).map(model => Object.freeze({
-    ...withK28PreviewMetadata(model),
+    ...withKimiCodeMetadata(model),
     provider: PROVIDER,
   })))
   return Object.freeze({

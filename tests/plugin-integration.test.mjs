@@ -211,7 +211,7 @@ test('a Kimi request through the host adapter carries the system prompt and tool
 })
 
 // Kimi rejects a K3.1 request that turns thinking off, so the picker must not
-// offer Off; with no effort chosen, Kimi applies the model default (max).
+// offer Off; with no effort chosen, Kimi applies the model default (high).
 test('the host adapter offers K3.1 Pro with low, high, and max effort only', async () => {
   const host = fakeContext()
   await host.ctx.credentials.set(undefined, TEST_API_KEY)
@@ -228,4 +228,47 @@ test('the host adapter offers K3.1 Pro with low, high, and max effort only', asy
     assert.deepEqual(resolved.reasoning.efforts.map(effort => effort.id), ['low', 'high', 'max'])
     assert.equal(resolved.reasoning.defaultEffort, undefined)
   }
+})
+
+// K2.7 Code Highspeed always thinks and takes no effort level, and Kimi serves
+// a request that disables thinking with K2.8 Preview instead. The picker then
+// offers only its Default row, and the request leaves thinking to Kimi.
+test('the host adapter offers K2.7 Code Highspeed with the default effort only', async () => {
+  const host = fakeContext()
+  await host.ctx.credentials.set(undefined, TEST_API_KEY)
+  apply(host.ctx)
+  const adapter = host.registered[0].adapter
+  const resolved = await adapter.resolveModel(PROVIDER, 'kimi-for-coding-highspeed')
+  assert.equal(resolved.name, 'Kimi K2.7 Code Highspeed')
+  assert.equal(resolved.context.contextWindow, 262144)
+  assert.deepEqual(resolved.reasoning, { efforts: [] })
+
+  const requests = []
+  const realFetch = globalThis.fetch
+  globalThis.fetch = async (url, init) => {
+    requests.push({ url: String(url), body: JSON.parse(init.body) })
+    return new Response(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'offline test' } }), {
+      status: 400,
+      headers: { 'content-type': 'application/json' },
+    })
+  }
+  const messages = [{ role: 'user', content: [{ type: 'text', text: 'Is the repository up to date?' }] }]
+  try {
+    const stream = adapter.stream({ provider: PROVIDER, model: 'kimi-for-coding-highspeed', messages })
+    await (async () => { for await (const _ of stream); })().catch(() => {})
+    // A conversation that picked a level for this model before is refused
+    // before any request leaves, so it cannot be served by another model.
+    await assert.rejects(
+      async () => { for await (const _ of adapter.stream({ provider: PROVIDER, model: 'kimi-for-coding-highspeed', messages, reasoningEffort: 'high' })); },
+      error => error.code === 'UNSUPPORTED_REASONING_EFFORT',
+    )
+  } finally {
+    globalThis.fetch = realFetch
+  }
+  assert.equal(requests.length, 1)
+  const { url, body } = requests[0]
+  assert.ok(url.startsWith('https://api.kimi.com/coding/v1/messages'), url)
+  assert.equal(body.model, 'kimi-for-coding-highspeed')
+  assert.equal(body.thinking, undefined)
+  assert.equal(body.output_config, undefined)
 })
