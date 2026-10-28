@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.2 — 2026-10-28
 
 - Retry a failed Kimi request up to five times instead of two ([#5](https://github.com/BaronCyrus/dsh-kimi-subscription/issues/5)). Kimi answers an overloaded engine with HTTP 429 and `The engine is currently overloaded, please try again later`, which the host retries as a rate limit. With two retries on the host's default backoff, 0.5 s and then 1 s, a request gave up about 1.5 s after the first refusal, so a short overload ended the turn. Five is the host's own default: the waits double from 0.5 s to 8 s, 15.5 s in all, before the original error is shown. The backoff itself is unchanged.
 - The limit covers all six retryable codes. A token that expired in flight still recovers on the first retry, but genuinely dead credentials can take up to 14 s longer to report, and a Kimi overload that outlasts the retries still ends the turn. Kimi's own retry hint, if it sends one, does not reach the host: DSH's pi-ai adapter never passes it on.
