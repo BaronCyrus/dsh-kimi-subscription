@@ -39,7 +39,7 @@ API Key 和 OAuth 凭据由 DSH Host 的凭据服务管理。OAuth 支持自动�
 本仓库按 [Kimi Code 模型文档](https://www.kimi.com/code/docs/kimi-code/models.html) 对目录里两个模型的元数据作了本地修正：
 
 - `kimi-for-coding`：名称为 **Kimi K2.8 Preview**，上下文声明为 `1048576`，思考档位映射为 `low` / `high` / `max`。
-- `kimi-for-coding-highspeed`：名称为 **Kimi K2.7 Code Highspeed**。这个模型始终开启思考，也不能调整思考程度，所以「推理等级」里只有 **Default**，请求不带思考字段。Kimi 会把关闭思考的请求交给 K2.8 Preview 无思考版处理。
+- `kimi-for-coding-highspeed`：名称为 **Kimi K2.7 Code Highspeed**。这个模型始终开启思考，也不能调整思考程度，所以模型选择器里没有它的「推理等级」，请求也不带思考字段。Kimi 会把关闭思考的请求交给 K2.8 Preview 无思考版处理。
 
 这些是插件的模型元数据，不是服务端容量或账号权限的保证，实现见 [pi-ai-runtime.js](../src/pi-ai-runtime.js)。
 
@@ -81,7 +81,7 @@ DSH 同一运行环境中只有一个生效的全局搜索提供方槽位；选�
 
 **能登录、能读额度，但模型失败。** 额度读取与模型调用是不同请求。先看错误是否明确提示模型权限；尝试账号有权使用的模型。仍为认证失败时，再检查凭据来源与登录状态。
 
-**K2.7 Code Highspeed 报 `does not support reasoning effort`。** 这个模型不能调整思考程度。旧会话里给它选过推理等级的，在模型选择器的「推理等级」里改选 **Default** 即可。
+**K2.7 Code Highspeed 报 `does not support reasoning effort`。** 这个模型不能调整思考程度，模型选择器里也没有它的「推理等级」。旧会话里给它选过推理等级的，在模型选择器里先换成别的模型，再换回 K2.7 Code Highspeed；从列表里选模型不会带上推理等级。
 
 **没有额度徽章。** 确认选择的是 `Kimi subscription` 分组，然后到设置页手动刷新用量。记录脱敏后的错误，不要提交原始账号响应。
 

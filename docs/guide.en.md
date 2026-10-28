@@ -41,7 +41,7 @@ The catalog comes from the pi-ai Kimi Code provider used by the plugin. The repo
 The repository corrects two catalog models locally, following the [Kimi Code model documentation](https://www.kimi.com/code/docs/kimi-code/models.html):
 
 - `kimi-for-coding`: the name **Kimi K2.8 Preview**, a declared context window of `1048576`, and a `low` / `high` / `max` thinking-level map.
-- `kimi-for-coding-highspeed`: the name **Kimi K2.7 Code Highspeed**. This model always thinks and takes no thinking effort, so its Effort menu offers only **Default** and the request carries no thinking field. Kimi serves a request that turns thinking off with K2.8 Preview without thinking.
+- `kimi-for-coding-highspeed`: the name **Kimi K2.7 Code Highspeed**. This model always thinks and takes no thinking effort, so the model picker shows no Effort row for it and the request carries no thinking field. Kimi serves a request that turns thinking off with K2.8 Preview without thinking.
 
 These are plugin metadata, not a guarantee of backend capacity or account access. See [pi-ai-runtime.js](../src/pi-ai-runtime.js).
 
@@ -83,7 +83,7 @@ The intended composed route sends Kimi models to Kimi search, Codex models to th
 
 **Sign-in and usage work, but a model fails.** Usage reads and model calls are separate requests. Check for an explicit model-access rejection and try a model the account can use. For authentication failures, inspect the credential type and session state instead.
 
-**K2.7 Code Highspeed reports `does not support reasoning effort`.** This model takes no thinking effort. If a conversation picked a level for it earlier, choose **Default** in the model picker's Effort menu.
+**K2.7 Code Highspeed reports `does not support reasoning effort`.** This model takes no thinking effort, and the model picker shows no Effort row for it. If a conversation picked a level for it earlier, pick another model in the model picker and then K2.7 Code Highspeed again: picking a model in the list sends no effort level.
 
 **No quota badge.** Select a model from `Kimi subscription`, then refresh usage in Settings. Share only a sanitized error, never the raw account response.
 

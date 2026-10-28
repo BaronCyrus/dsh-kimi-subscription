@@ -4,6 +4,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 
+import { Context } from '@deepseek-ai/cordis'
+import { LlmRuntime } from '@deepseek-ai/dsh-llm'
+
 import { apply, DISPLAY_NAME, PROVIDER } from '../src/index.js'
 
 // Keep the search-composition editor away from the developer's real profile:
@@ -70,18 +73,6 @@ test('plugin registers an isolated Kimi subscription group and loopback auth RPC
   assert.deepEqual(host.registered.map(item => item.providers), [[PROVIDER]])
   const adapter = host.registered[0].adapter
   assert.deepEqual(adapter.providerInfo(PROVIDER), { id: PROVIDER, name: DISPLAY_NAME })
-  // Exercise the real host adapter, not just pi-ai's raw model descriptors.
-  // Every advertised reasoning capability must have at least one effort;
-  // otherwise DSH rejects the entire provider catalog.
-  const catalog = await Promise.all([
-    'k3.1-pro', 'k3.1-pro-highspeed', 'k3', 'k3-256k',
-    'kimi-for-coding', 'kimi-for-coding-highspeed',
-  ].map(id => adapter.resolveModel(PROVIDER, id)))
-  assert.equal(catalog.length, 6)
-  for (const model of catalog) {
-    assert.ok(model.reasoning === undefined || model.reasoning.efforts.length > 0, model.id)
-  }
-  assert.equal(catalog.find(model => model.id === 'kimi-for-coding-highspeed').reasoning, undefined)
   const retryPolicy = adapter.providerRetryPolicy(PROVIDER)
   assert.equal(retryPolicy.mode, 'normal')
   assert.equal(retryPolicy.maxRetries, 2)
@@ -242,9 +233,33 @@ test('the host adapter offers K3.1 Pro with low, high, and max effort only', asy
   }
 })
 
+// DSH resolves every listed model through LlmRuntime before the model picker
+// shows the group, and one model it rejects hides every Kimi model. Run the
+// catalog through that validator instead of restating its rules here.
+test('DSH validates the metadata of every Kimi subscription model', async t => {
+  const root = new Context()
+  t.after(() => root.fiber.dispose())
+  await root.plugin(LlmRuntime)
+  const llm = root.get('llm')
+  const host = fakeContext()
+  await host.ctx.credentials.set(undefined, TEST_API_KEY)
+  apply(host.ctx)
+  llm.registerAdapter([PROVIDER], host.registered[0].adapter)
+  const resolved = []
+  for (const { id } of await llm.listModels(PROVIDER)) resolved.push(await llm.resolveModelInfo(PROVIDER, id))
+  assert.deepEqual(resolved.map(model => [model.id, model.reasoning?.efforts.map(effort => effort.id)]), [
+    ['k3.1-pro', ['low', 'high', 'max']],
+    ['k3.1-pro-highspeed', ['low', 'high', 'max']],
+    ['k3', ['low', 'high', 'max']],
+    ['k3-256k', ['low', 'high', 'max']],
+    ['kimi-for-coding', ['low', 'high', 'max']],
+    ['kimi-for-coding-highspeed', undefined],
+  ])
+})
+
 // K2.7 Code Highspeed always thinks and takes no effort level, and Kimi serves
 // a request that disables thinking with K2.8 Preview instead. The picker then
-// offers only its Default row, and the request leaves thinking to Kimi.
+// shows no Effort row for it, and the request leaves thinking to Kimi.
 test('the host adapter offers K2.7 Code Highspeed with the default effort only', async () => {
   const host = fakeContext()
   await host.ctx.credentials.set(undefined, TEST_API_KEY)
