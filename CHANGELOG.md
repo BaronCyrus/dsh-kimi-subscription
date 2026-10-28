@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Retry a failed Kimi request up to five times instead of two ([#5](https://github.com/BaronCyrus/dsh-kimi-subscription/issues/5)). Kimi answers an overloaded engine with HTTP 429 and `The engine is currently overloaded, please try again later`, which the host retries as a rate limit. With two retries on the host's default backoff, 0.5 s and then 1 s, a request gave up about 1.5 s after the first refusal, so a short overload ended the turn. Five is the host's own default: the waits double from 0.5 s to 8 s, 15.5 s in all, before the original error is shown. The backoff itself is unchanged.
+- The limit covers all six retryable codes. A token that expired in flight still recovers on the first retry, but genuinely dead credentials can take up to 14 s longer to report, and a Kimi overload that outlasts the retries still ends the turn. Kimi's own retry hint, if it sends one, does not reach the host: DSH's pi-ai adapter never passes it on.
+- Verified offline: all 121 tests pass. A test sends Kimi's 429 overload reply through the real host adapter: pi-ai sends the request once, with no retries of its own, and the failure arrives as `RATE_LIMIT`, which the policy retries, not as an exhausted quota. The retry tests drive the host's real retry executor with the registered policy: each of the six codes is retried five times, after 0.5, 1, 2, 4, and 8 s, and the sixth failure surfaces unchanged. No live model calls and no credential reads.
+
 ## 1.4.1 — 2026-10-28
 
 - Calibrate the model list against Kimi's documentation: the [Kimi Code model page](https://www.kimi.com/code/docs/kimi-code/models.html), which gives the IDs this route takes, and the Open Platform [pricing page](https://platform.kimi.com/docs/pricing/chat). The six IDs, their order, and their context windows already matched the Kimi Code page. `kimi-for-coding-highspeed` did not, and a test now pins the whole list.

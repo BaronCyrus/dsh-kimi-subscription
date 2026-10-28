@@ -76,11 +76,15 @@ export function apply(ctx, config) {
     // guard marks the token rejected, the retry re-resolves auth, and pi-ai
     // refreshes under its serialized lock. Genuinely dead credentials still
     // fail after the retries.
+    // Kimi answers an overloaded engine with HTTP 429, which the host retries
+    // as RATE_LIMIT. Five retries, the host's own default, wait about 15 s in
+    // all on the default backoff (0.5 s doubling to 8 s); two gave up after
+    // 1.5 s. The limit covers every code here, AUTH included.
     // Injected profiles bypass settings resolution. The adapter requires a
     // resolved policy, including finite backoff defaults for durable retries.
     retryPolicy: resolveRetryPolicy({
       mode: 'normal',
-      maxRetries: 2,
+      maxRetries: 5,
       retryableCodes: ['EMPTY_RESPONSE', 'RATE_LIMIT', 'SERVER', 'TIMEOUT', 'TRANSPORT', 'AUTH'],
     }, 'kimi-subscription.retryPolicy'),
   })

@@ -75,7 +75,7 @@ test('plugin registers an isolated Kimi subscription group and loopback auth RPC
   assert.deepEqual(adapter.providerInfo(PROVIDER), { id: PROVIDER, name: DISPLAY_NAME })
   const retryPolicy = adapter.providerRetryPolicy(PROVIDER)
   assert.equal(retryPolicy.mode, 'normal')
-  assert.equal(retryPolicy.maxRetries, 2)
+  assert.equal(retryPolicy.maxRetries, 5)
   assert.ok(retryPolicy.retryableCodes.includes('AUTH'))
 
   assert.equal(host.handled.length, 1)
@@ -298,4 +298,39 @@ test('the host adapter offers K2.7 Code Highspeed with the default effort only',
   assert.equal(body.model, 'kimi-for-coding-highspeed')
   assert.equal(body.thinking, undefined)
   assert.equal(body.output_config, undefined)
+})
+
+// Kimi answers an overloaded engine with HTTP 429. The host must read that as
+// a rate limit it retries, not as an exhausted quota, which it reports at once.
+test('Kimi\'s overloaded engine reaches the host as a retryable rate limit', async () => {
+  const host = fakeContext()
+  await host.ctx.credentials.set(undefined, TEST_API_KEY)
+  apply(host.ctx)
+  const adapter = host.registered[0].adapter
+  let requests = 0
+  const realFetch = globalThis.fetch
+  globalThis.fetch = async () => {
+    requests++
+    return new Response(JSON.stringify({ error: { type: 'rate_limit_error', message: 'The engine is currently overloaded, please try again later' } }), {
+      status: 429,
+      headers: { 'content-type': 'application/json' },
+    })
+  }
+  const chunks = []
+  try {
+    const messages = [{ role: 'user', content: [{ type: 'text', text: 'Is the repository up to date?' }] }]
+    for await (const chunk of adapter.stream({ provider: PROVIDER, model: 'kimi-for-coding', messages })) chunks.push(chunk)
+  } finally {
+    globalThis.fetch = realFetch
+  }
+  // One request per attempt: the retries belong to the host, under this policy.
+  assert.equal(requests, 1)
+  const finish = chunks.at(-1)
+  assert.equal(finish.type, 'finish')
+  assert.equal(finish.reason.kind, 'error')
+  assert.equal(finish.reason.failure.code, 'RATE_LIMIT')
+  assert.match(finish.reason.failure.message, /engine is currently overloaded/u)
+  const policy = adapter.providerRetryPolicy(PROVIDER)
+  assert.ok(policy.retryableCodes.includes('RATE_LIMIT'))
+  assert.equal(policy.maxRetries, 5)
 })

@@ -99,7 +99,7 @@ async function expectRetry(t, harness, failure, retry, delayMs, next) {
   }
   const event = scheduled.at(-1)
   assert.equal(event.data.retry, retry)
-  assert.equal(event.data.maxRetries, 2)
+  assert.equal(event.data.maxRetries, 5)
   assert.equal(event.data.provider, PROVIDER)
   assert.equal(event.data.mode, 'normal')
   assert.equal(event.data.delayMs, delayMs)
@@ -123,7 +123,7 @@ test('registered adapter exposes a complete immutable retry policy', t => {
   const policy = pluginPolicy(t)
   assert.deepEqual(policy, {
     mode: 'normal',
-    maxRetries: 2,
+    maxRetries: 5,
     retryableCodes: [...RETRYABLE_CODES],
     initialDelayMs: 500,
     maxDelayMs: 10000,
@@ -136,7 +136,7 @@ test('registered adapter exposes a complete immutable retry policy', t => {
 })
 
 for (const code of RETRYABLE_CODES) {
-  test(`${code}: actual policy retries twice with finite default delays, then preserves the failure`, async t => {
+  test(`${code}: actual policy retries five times with finite default delays, then preserves the failure`, async t => {
     const harness = retryHarness(t, pluginPolicy(t))
     // No providerRetryAfterMs: that would bypass the broken local-backoff path.
     const failure = { code, message: `Synthetic ${code} provider failure` }
@@ -146,17 +146,18 @@ for (const code of RETRYABLE_CODES) {
       downstreamCalls++
       throw originalError
     }
-    await expectRetry(t, harness, failure, 1, 500, next)
-    await expectRetry(t, harness, failure, 2, 1000, next)
+    // The host's default backoff doubles from 0.5 s to 8 s, 15.5 s in all.
+    const delays = [500, 1000, 2000, 4000, 8000]
+    for (const [index, delayMs] of delays.entries()) {
+      await expectRetry(t, harness, failure, index + 1, delayMs, next)
+    }
     assert.equal(downstreamCalls, 0)
     const before = harness.events()
     await assert.rejects(harness.recover(failure, next), error => error === originalError)
     assert.equal(downstreamCalls, 1)
     assert.deepEqual(harness.events(), before)
-    assert.deepEqual(before.map(event => event.type), [
-      'llm/retry', 'llm/retry-started', 'llm/retry', 'llm/retry-started',
-    ])
-    assert.equal(before[0].data.retryId, before[2].data.retryId)
+    assert.deepEqual(before.map(event => event.type), delays.flatMap(() => ['llm/retry', 'llm/retry-started']))
+    assert.ok(before.every(event => event.data.retryId === before[0].data.retryId))
   })
 }
 
