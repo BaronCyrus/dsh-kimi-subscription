@@ -44,7 +44,7 @@ Open the desktop application's **Plugins** page, click **Add plugin**, and enter
 dsh-kimi-subscription
 ```
 
-Choose the **official** install source, then click **Install**. The same field also accepts a GitHub repository address or an absolute path to a local plugin directory; to pin a version, enter `dsh-kimi-subscription@1.4.0`.
+Choose the **official** install source, then click **Install**. The same field also accepts a GitHub repository address or an absolute path to a local plugin directory; to pin a version, enter `dsh-kimi-subscription@1.4.1`.
 
 Then **manually restart the desktop application** — it reports that changes take effect on the next launch, and refreshing the page alone does not reload the plugin inside the Host process.
 
@@ -63,7 +63,7 @@ Choose a model your subscription can use from the **Kimi subscription** group, t
 
 The **Plugins** page shows the installed state and version, and is also where you enable, disable, or uninstall.
 
-The install source can be switched next to it; to pin a version, put `dsh-kimi-subscription@<version>` straight into **package name or address**. For offline or audited setups, download `dsh-kimi-subscription-1.4.0.tgz` from [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) and install from that file's absolute path instead.
+The install source can be switched next to it; to pin a version, put `dsh-kimi-subscription@<version>` straight into **package name or address**. For offline or audited setups, download `dsh-kimi-subscription-1.4.1.tgz` from [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) and install from that file's absolute path instead.
 
 **For non-desktop profiles only:** `dsh plugin --profile <name> add dsh-kimi-subscription@latest` works for a scratch profile. Do not use it for `desktop` — the CLI refuses it outright (`profile "desktop" is managed exclusively by the Electron application`). Use the Plugins page for the desktop app.
 
@@ -99,7 +99,7 @@ Quick links: [Sign-in and credentials](docs/guide.en.md#sign-in-and-credentials)
 
 ## Update and uninstall
 
-> **Upgrading from 1.3.9 or earlier:** install `dsh-kimi-subscription@1.4.0` on the Plugins page instead of clicking **Update plugin** in the old settings card. The old button bypasses pnpm's release-age policy: if the version it installs is less than 24 hours old, the profile refuses every other plugin install until that version is 24 hours old. After the install and a restart, the button is the fixed one, and later updates can use it.
+> **Upgrading from 1.3.9 or earlier:** install `dsh-kimi-subscription@1.4.1` on the Plugins page instead of clicking **Update plugin** in the old settings card. The old button bypasses pnpm's release-age policy: if the version it installs is less than 24 hours old, the profile refuses every other plugin install until that version is 24 hours old. After the install and a restart, the button is the fixed one, and later updates can use it.
 
 **Update:** open **Settings → Kimi subscription → Update plugin**. It installs the exact version into the `desktop` profile with DSH's bundled pnpm and reads the version back from `package.json`, so a command that installed nothing never reads as success. The install keeps pnpm's release-age policy instead of overriding it: by default pnpm installs the version at once and records it in the profile's `minimumReleaseAgeExclude`; under a stricter pnpm policy the button says when the update can run. Manual recovery steps are in [Updates and cleanup](docs/guide.en.md#updates-and-cleanup).
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.1 — 2026-10-28
 
 - Calibrate the model list against Kimi's documentation: the [Kimi Code model page](https://www.kimi.com/code/docs/kimi-code/models.html), which gives the IDs this route takes, and the Open Platform [pricing page](https://platform.kimi.com/docs/pricing/chat). The six IDs, their order, and their context windows already matched the Kimi Code page. `kimi-for-coding-highspeed` did not, and a test now pins the whole list.
 - `kimi-for-coding-highspeed` is now named **Kimi K2.7 Code Highspeed**, the model version both pages give it. pi-ai's catalog calls it "Kimi For Coding HighSpeed".

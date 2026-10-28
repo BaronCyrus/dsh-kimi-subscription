@@ -46,7 +46,7 @@
 dsh-kimi-subscription
 ```
 
-在**安装源**中选择**官方源**，然后点击**安装**。同一个输入框也接受 GitHub 仓库地址和本机插件目录的绝对路径；需要固定版本时填入 `dsh-kimi-subscription@1.4.0`。
+在**安装源**中选择**官方源**，然后点击**安装**。同一个输入框也接受 GitHub 仓库地址和本机插件目录的绝对路径；需要固定版本时填入 `dsh-kimi-subscription@1.4.1`。
 
 完成后**手动重启桌面应用** —— 应用自身会提示「更改将在下次启动生效」，仅刷新页面不会重新加载 Host 中的插件。
 
@@ -65,7 +65,7 @@ dsh-kimi-subscription
 
 在桌面应用的**插件**页可以看到已安装状态与版本，也可以在那里启用、停用或卸载。
 
-安装完成后在**安装源**旁可以切换镜像源；需要固定版本时把 `dsh-kimi-subscription@<version>` 直接填进**包名或地址**。离线或需要审计时，从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载 `dsh-kimi-subscription-1.4.0.tgz`，改用该文件的绝对路径安装。
+安装完成后在**安装源**旁可以切换镜像源；需要固定版本时把 `dsh-kimi-subscription@<version>` 直接填进**包名或地址**。离线或需要审计时，从 [GitHub Releases](https://github.com/BaronCyrus/dsh-kimi-subscription/releases/latest) 下载 `dsh-kimi-subscription-1.4.1.tgz`，改用该文件的绝对路径安装。
 
 **仅用于其它 profile：** `dsh plugin --profile <name> add dsh-kimi-subscription@latest` 可用于自建 profile。不要对 `desktop` 使用它 —— CLI 会直接拒绝（`profile "desktop" is managed exclusively by the Electron application`），桌面版请走插件页。
 
@@ -101,7 +101,7 @@ dsh-kimi-subscription
 
 ## 更新与卸载
 
-> **从 1.3.9 或更早版本升级：** 请在插件页填写 `dsh-kimi-subscription@1.4.0` 安装，不要点旧版设置页里的「更新插件」。旧按钮安装时会绕过 pnpm 的发布冷却期：装到的版本如果发布还不满 24 小时，这个 profile 在它满 24 小时之前就装不了其他插件。装好并重启后，按钮就换成了修好的版本，以后直接点即可。
+> **从 1.3.9 或更早版本升级：** 请在插件页填写 `dsh-kimi-subscription@1.4.1` 安装，不要点旧版设置页里的「更新插件」。旧按钮安装时会绕过 pnpm 的发布冷却期：装到的版本如果发布还不满 24 小时，这个 profile 在它满 24 小时之前就装不了其他插件。装好并重启后，按钮就换成了修好的版本，以后直接点即可。
 
 **更新：** 打开 **设置 → Kimi 订阅 → 更新插件**。它会在 `desktop` profile 目录中用 DSH 自带的 pnpm 安装精确版本，并读回 `package.json` 确认版本真的落地。安装遵守 pnpm 的发布冷却策略，不会绕过它：默认情况下 pnpm 会直接装上新版本，并把它记进 profile 的 `minimumReleaseAgeExclude`；如果给 pnpm 配了更严格的策略，按钮会提示什么时候可以更新。失败时的手动步骤见[更新与清理](docs/guide.zh-CN.md#更新与清理)。
 
