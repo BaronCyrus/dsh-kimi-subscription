@@ -17,7 +17,8 @@ Do not open a public issue containing API keys, access tokens, refresh tokens, a
 - The plugin runs with the privileges of the DSH Host process.
 - Subscription credentials remain in DSH's Host credential service.
 - Browser code calls only a loopback-authorized RPC surface and receives redacted account or quota projections.
-- OAuth login links are restricted to official Kimi HTTPS origins.
+- OAuth login links are restricted to official Kimi HTTPS origins: `auth.kimi.com`, `www.kimi.com`, and `kimi.com` for the China site, and `auth.kimi.ai`, `www.kimi.ai`, and `kimi.ai` for the international site.
+- Each credential records the Kimi Code site it was connected to. Model, usage, and search requests and OAuth refreshes made with it go only to that site's fixed hosts, `api.kimi.com` and `auth.kimi.com` or `api.kimi.ai` and `auth.kimi.ai`. The plugin never retries a request on the other site, and refuses a request whose site it does not recognize before the credential is sent.
 - Usage requests are Host-side, bounded by a timeout, refuse redirects, and never return bearer credentials or raw provider payloads to the browser.
 - Version checks fetch only public npm registry metadata (timeout-bounded, redirects refused); one-click updates execute the `dsh plugin` CLI Host-side and never expose process output to the browser.
 - The plugin defines no Kimi Open Platform or cross-provider fallback.

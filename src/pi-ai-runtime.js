@@ -2,6 +2,7 @@ import { kimiCodingProvider as createKimiCodingProvider } from '@earendil-works/
 
 import { DISPLAY_NAME, PROVIDER } from './constants.js'
 import { createKimiOAuth } from './kimi-oauth.js'
+import { kimiRegionSite } from './kimi-region.js'
 
 export { createModels } from '@earendil-works/pi-ai'
 export { createKimiOAuth, KimiOAuthError, classifyKimiOAuthFailure } from './kimi-oauth.js'
@@ -17,7 +18,8 @@ const isAuthRejection = error => AUTH_REJECTION.test(String(error?.message ?? er
 // plan limit. These two patterns are the parts of Kimi's answer that survive
 // that, and the sentence below is what the user sees instead.
 const MODEL_ACCESS_REJECTION = /does not have access to\s+["'“]?([A-Za-z0-9][A-Za-z0-9._-]*)/iu
-const TIER_REJECTION = /higher-tier Kimi Code plans|kimi\.com\/code\?from=/iu
+// The international site links its upgrade page on kimi.ai.
+const TIER_REJECTION = /higher-tier Kimi Code plans|kimi\.(?:com|ai)\/code\?from=/iu
 const FALLBACK_MODEL = 'kimi-for-coding'
 
 /**
@@ -200,6 +202,25 @@ export function guardKimiStreamAuthRejection(stream, onAuthRejected) {
 }
 
 /**
+ * Add the region's base URL to an API-key resolution. pi-ai sends a request to
+ * the base URL its auth resolution names instead of the catalog's, so a stored
+ * key reaches the region it was connected to, as an OAuth token does through
+ * `toAuth`.
+ * @param apiKey - pi-ai's API-key auth for Kimi Code.
+ * @returns the same auth, with each resolution naming its region's base URL.
+ */
+function withKimiRegionBaseUrl(apiKey) {
+  return Object.freeze({
+    ...apiKey,
+    async resolve(input) {
+      const resolution = await apiKey.resolve(input)
+      if (resolution === undefined) return undefined
+      return { ...resolution, auth: { ...resolution.auth, baseUrl: kimiRegionSite(input?.credential?.region).baseUrl } }
+    },
+  })
+}
+
+/**
  * Reuse pi-ai's Kimi Code protocol, catalog, and API-key resolution while
  * giving the DSH subscription route an identity distinct from the generic
  * kimi-coding route. API-key and OAuth auth are both subscription
@@ -209,16 +230,16 @@ export function guardKimiStreamAuthRejection(stream, onAuthRejected) {
  * OAuth is this plugin's own implementation (`./kimi-oauth.js`): pi-ai's uses
  * the ambient transport, which cannot be relied on to deliver an unencoded
  * body while no credential exists yet.
+ *
+ * The catalog keeps pi-ai's mainland-China base URL. Both auth methods name
+ * the base URL of the credential's region, and pi-ai sends the request there.
  */
-export function createKimiSubscriptionProvider({ onAuthRejected, oauth, fetchImpl, oauthHost } = {}) {
+export function createKimiSubscriptionProvider({ onAuthRejected, oauth, fetchImpl } = {}) {
   const base = createKimiCodingProvider()
   if (base.auth?.oauth === undefined || base.auth?.apiKey === undefined) {
     throw new Error('The installed pi-ai Kimi provider does not expose the required subscription authentication methods')
   }
-  const subscriptionOAuth = oauth ?? createKimiOAuth({
-    ...fetchImpl === undefined ? {} : { fetchImpl },
-    ...oauthHost === undefined ? {} : { oauthHost },
-  })
+  const subscriptionOAuth = oauth ?? createKimiOAuth(fetchImpl === undefined ? {} : { fetchImpl })
   const models = Object.freeze(withK31ProModels(base.getModels()).map(model => Object.freeze({
     ...withKimiCodeMetadata(model),
     provider: PROVIDER,
@@ -229,7 +250,7 @@ export function createKimiSubscriptionProvider({ onAuthRejected, oauth, fetchImp
     baseUrl: base.baseUrl,
     headers: base.headers,
     auth: Object.freeze({
-      apiKey: base.auth.apiKey,
+      apiKey: withKimiRegionBaseUrl(base.auth.apiKey),
       oauth: subscriptionOAuth,
     }),
     getModels: () => models,

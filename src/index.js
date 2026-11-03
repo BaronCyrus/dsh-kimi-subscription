@@ -101,9 +101,11 @@ export function apply(ctx, config) {
       if (credential === undefined) {
         throw new LlmError('Kimi Code subscription is not connected', 'MISSING_CREDENTIAL')
       }
-      // API keys can use pi-ai's highest-priority request override. OAuth must
-      // stay in the shared store so pi-ai can refresh it and derive headers.
-      return credential.type === 'api_key' ? credential.key : undefined
+      // No request override for either type: pi-ai reads the stored
+      // credential, refreshes OAuth, and takes the base URL of the region the
+      // credential belongs to from its auth. An overriding key carries no
+      // region, so it would always reach the mainland-China site.
+      return undefined
     },
     auth: Object.freeze({ credentials: store, authContext }),
     resolveAttachments: () => ctx.get?.('attachments') ?? ctx.attachments,

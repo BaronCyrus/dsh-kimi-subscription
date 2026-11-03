@@ -73,6 +73,28 @@ test('usage reader sends host-only bearer auth and caches the official endpoint'
   assert.equal(requests, 2)
 })
 
+test('usage is read from the region the credential belongs to', async () => {
+  const urls = []
+  const readerFor = baseUrl => createKimiUsageReader({
+    getAuth: async () => ({ auth: { apiKey: 'subscription-secret', baseUrl } }),
+    fetchImpl: async url => {
+      urls.push(url)
+      return { ok: true, status: 200, async json() { return payload } }
+    },
+  })
+  await readerFor('https://api.kimi.ai/coding').read()
+  await readerFor('https://api.kimi.com/coding').read()
+  assert.deepEqual(urls, ['https://api.kimi.ai/coding/v1/usages', KIMI_USAGE_URL])
+  assert.equal(KIMI_USAGE_URL, 'https://api.kimi.com/coding/v1/usages')
+
+  // A base URL outside the two regions never receives the credential.
+  await assert.rejects(
+    () => readerFor('https://usage.example/coding').read(),
+    error => error.message === 'Kimi Code subscription region is not recognized',
+  )
+  assert.equal(urls.length, 2)
+})
+
 test('OAuth Authorization headers are accepted and auth failures are sanitized', async () => {
   let authorization
   const oauthReader = createKimiUsageReader({

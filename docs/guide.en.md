@@ -28,9 +28,13 @@ Restart the desktop application after installation. For further local checks on 
 
 ## Sign-in and credentials
 
-In **Settings → Kimi subscription**, choose a Kimi Code subscription API key or device sign-in. Create the former in the Kimi Code console; complete the latter through the official authorization flow shown in the UI.
+In **Settings → Kimi subscription**, choose the site first, then a Kimi Code subscription API key or device sign-in. Create the former in the Kimi Code console; complete the latter through the official authorization flow shown in the UI.
 
-The plugin connects to Kimi Code at `https://api.kimi.com/coding`. This is distinct from the pay-as-you-go Open Platform at `api.moonshot.ai` / `api.moonshot.cn`; keys and allowances are not interchangeable. It does not silently use an ambient Open Platform key as a fallback.
+Kimi Code runs two sites; choose the one where your membership is registered. The China site serves subscriptions at `https://api.kimi.com/coding` and signs in through `https://auth.kimi.com`; the international site uses `https://api.kimi.ai/coding` and `https://auth.kimi.ai`. The [Kimi Code documentation](https://www.kimi.com/code/docs/kimi-code/models.html) lists both API hosts, and the region settings of the official [kimi-code](https://github.com/MoonshotAI/kimi-code) client list both authorization servers.
+
+The site is stored with the credential, as the official client keeps it with the login. Model requests, web search, usage reads, and OAuth refreshes all go to the site chosen when connecting, and a token is refreshed only by the authorization server that issued it. The plugin does not detect the site, and it never retries on the other site after a failure. To change sites, disconnect and connect again. Connections saved before the site choice existed belong to the China site and keep working unchanged.
+
+Both sites are distinct from the pay-as-you-go Open Platform at `api.moonshot.ai` / `api.moonshot.cn`; keys and allowances are not interchangeable. It does not silently use an ambient Open Platform key as a fallback.
 
 DSH Host's credential service manages API keys and OAuth credentials. OAuth supports automatic refresh, but revoked authorization, invalid sessions, or connectivity problems can still require sign-in again. Automatic refresh is not a promise of permanent connectivity. See [SECURITY.md](../SECURITY.md).
 
@@ -55,13 +59,13 @@ When the backend explicitly reports that a model is outside the account's access
 
 ## Quota
 
-Settings reads Kimi Code `/coding/v1/usages` and presents the remaining percentages, used amounts, reset times, and booster information actually returned. The compact composer display shows short and weekly windows and refreshes every 60 seconds in the current implementation.
+Settings reads Kimi Code `/coding/v1/usages` on the connected site and presents the remaining percentages, used amounts, reset times, and booster information actually returned. The compact composer display shows short and weekly windows and refreshes every 60 seconds in the current implementation.
 
 `5h 82%　7d 64%` is only a formatting example. It is not your balance or a promise that every account has those windows. If no usable reading is available, refresh usage in Settings and inspect the error; missing data does not mean zero quota. See [usage.js](../src/usage.js) and [client.jsx](../src/client.jsx).
 
 ## Web search and Codex coexistence
 
-A DSH runtime has one effective global search-provider slot. Selecting a chat model does not necessarily select a search provider. This plugin registers `kimi-subscription` and `kimi-subscription-auto`, using Kimi Code `/coding/v1/search`.
+A DSH runtime has one effective global search-provider slot. Selecting a chat model does not necessarily select a search provider. This plugin registers `kimi-subscription` and `kimi-subscription-auto`, using Kimi Code `/coding/v1/search` on the connected site.
 
 | Setting | Behavior managed by this plugin |
 | --- | --- |
@@ -80,6 +84,8 @@ The intended composed route sends Kimi models to Kimi search, Codex models to th
 **Missing Settings page or an old version still running.** Confirm the plugin was installed into the profile you actually run, then restart DSH and refresh the browser. A successful install does not prove the running process loaded the new code.
 
 **Device authorization failed.** Follow the distinct denied, expired-code, and network failure messages. Start a new flow for an expired code, or check Host connectivity for a network failure. Do not classify every failure as an invalid key.
+
+**A key or sign-in is rejected although the membership is active.** Check that the site shown in Settings is the one where the membership is registered. If it is not, disconnect, choose the right site, and connect again; the plugin never switches sites on its own.
 
 **Sign-in and usage work, but a model fails.** Usage reads and model calls are separate requests. Check for an explicit model-access rejection and try a model the account can use. For authentication failures, inspect the credential type and session state instead.
 

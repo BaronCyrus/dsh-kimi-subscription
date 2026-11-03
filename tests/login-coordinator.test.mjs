@@ -11,9 +11,51 @@ test('only official Kimi HTTPS login links reach the browser', () => {
     'https://www.kimi.com/code/authorize_device?user_code=ABCD',
   )
   assert.equal(assertKimiAuthUrl('https://auth.kimi.com/activate'), 'https://auth.kimi.com/activate')
+  // The international site signs in on kimi.ai.
+  assert.equal(
+    assertKimiAuthUrl('https://www.kimi.ai/code/authorize_device?user_code=ABCD'),
+    'https://www.kimi.ai/code/authorize_device?user_code=ABCD',
+  )
+  assert.equal(assertKimiAuthUrl('https://auth.kimi.ai/activate'), 'https://auth.kimi.ai/activate')
   assert.throws(() => assertKimiAuthUrl('http://www.kimi.com/code'), /official Kimi HTTPS/u)
+  assert.throws(() => assertKimiAuthUrl('http://www.kimi.ai/code'), /official Kimi HTTPS/u)
   assert.throws(() => assertKimiAuthUrl('https://www.kimi.com.evil.example/code'), /official Kimi HTTPS/u)
+  assert.throws(() => assertKimiAuthUrl('https://www.kimi.ai.evil.example/code'), /official Kimi HTTPS/u)
+  assert.throws(() => assertKimiAuthUrl('https://code.kimi.ai/code'), /official Kimi HTTPS/u)
   assert.throws(() => assertKimiAuthUrl('javascript:alert(1)'), /official Kimi HTTPS/u)
+})
+
+test('a sign-in starts on the region the browser chose', async () => {
+  const regions = []
+  const auth = {
+    async status() { return { authenticated: false, provider: PROVIDER } },
+    async login(interaction) {
+      regions.push(interaction.region)
+      interaction.notify({
+        type: 'device_code',
+        userCode: 'ABCD-EFGH',
+        verificationUri: 'https://www.kimi.ai/code/authorize_device?user_code=ABCD-EFGH',
+      })
+      await new Promise(() => {})
+    },
+    async setApiKey() {},
+    async logout() {},
+  }
+  const ids = ['login-global', 'login-default']
+  const coordinator = new KimiLoginCoordinator(auth, { createId: () => ids.shift() })
+  const handler = createKimiRpcHandler(coordinator)
+  const signal = new AbortController().signal
+  const started = await handler('login/start', { region: 'global' }, signal)
+  assert.equal(started.value.deviceCode.verificationUri, 'https://www.kimi.ai/code/authorize_device?user_code=ABCD-EFGH')
+  await coordinator.cancel('login-global')
+  await handler('login/start', {}, signal)
+  assert.deepEqual(regions, ['global', 'mainland-cn'])
+
+  // An unknown region is refused before any sign-in starts.
+  await coordinator.cancel('login-default')
+  const refused = await handler('login/start', { region: 'mars' }, signal)
+  assert.equal(refused.error.message, 'Kimi Code subscription region is invalid')
+  assert.equal(regions.length, 2)
 })
 
 test('device login exposes only public state and scrubs provider failures', async () => {
@@ -165,4 +207,23 @@ test('usage RPC returns quota JSON and invalidates it when credentials change', 
   await handler('api-key/set', { apiKey: 'replacement' }, signal)
   await handler('logout', {}, signal)
   assert.equal(invalidations, 2)
+})
+
+test('an API key is saved for the region the browser chose', async () => {
+  const saved = []
+  const coordinator = new KimiLoginCoordinator({
+    async status() { return { authenticated: false, provider: PROVIDER } },
+    async login() {},
+    async setApiKey(apiKey, options) {
+      saved.push([apiKey, options.region])
+      return { authenticated: true, provider: PROVIDER, method: 'api-key', region: options.region ?? 'mainland-cn' }
+    },
+    async logout() {},
+  })
+  const handler = createKimiRpcHandler(coordinator)
+  const signal = new AbortController().signal
+  const status = await handler('api-key/set', { apiKey: 'international-key', region: 'global' }, signal)
+  assert.equal(status.value.region, 'global')
+  await handler('api-key/set', { apiKey: 'mainland-key' }, signal)
+  assert.deepEqual(saved, [['international-key', 'global'], ['mainland-key', undefined]])
 })

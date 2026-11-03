@@ -2,9 +2,10 @@ import { randomUUID } from 'node:crypto'
 
 import { PROVIDER } from './constants.js'
 import { classifyKimiOAuthFailure } from './kimi-oauth.js'
+import { KIMI_AUTH_ORIGINS, kimiRegionOf } from './kimi-region.js'
 
 const TERMINAL_PHASES = new Set(['authenticated', 'failed', 'cancelled'])
-const ALLOWED_AUTH_ORIGINS = new Set(['https://auth.kimi.com', 'https://www.kimi.com', 'https://kimi.com'])
+const ALLOWED_AUTH_ORIGINS = new Set(KIMI_AUTH_ORIGINS)
 const publicClone = value => structuredClone(value)
 const asObject = value => value !== null && typeof value === 'object' ? value : {}
 const ok = value => ({ ok: true, value })
@@ -52,7 +53,9 @@ export class KimiLoginCoordinator {
     return publicClone(await this.auth.status(options))
   }
 
-  async start() {
+  /** Start a device sign-in on one region's authorization server, or return the one in progress. */
+  async start({ region } = {}) {
+    const loginRegion = kimiRegionOf(region)
     const active = this.#activeId === undefined ? undefined : this.#sessions.get(this.#activeId)
     if (active !== undefined && !TERMINAL_PHASES.has(active.view.phase)) return this.read(active.view.id)
     if (active !== undefined) this.#sessions.delete(active.view.id)
@@ -78,6 +81,7 @@ export class KimiLoginCoordinator {
     // public view directly so the old finally handler can never throw.
     const publishReady = () => ready.resolve(publicClone(session.view))
     const interaction = {
+      region: loginRegion,
       signal: controller.signal,
       prompt: async () => {
         throw new Error('Kimi device login unexpectedly requested interactive input')
@@ -196,7 +200,7 @@ export function createKimiRpcHandler(coordinator, { usageReader, pluginManager, 
       signal.throwIfAborted()
       const input = asObject(payload)
       if (endpoint === 'status') return ok(await coordinator.accountStatus({ signal }))
-      if (endpoint === 'login/start') return ok(await coordinator.start())
+      if (endpoint === 'login/start') return ok(await coordinator.start({ region: input.region }))
       if (endpoint === 'login/status') return ok(coordinator.read(input.id))
       if (endpoint === 'login/cancel') return ok(await coordinator.cancel(input.id))
       if (endpoint === 'usage') {
@@ -220,7 +224,7 @@ export function createKimiRpcHandler(coordinator, { usageReader, pluginManager, 
         return ok(preferenceStatus())
       }
       if (endpoint === 'api-key/set') {
-        const status = await coordinator.setApiKey(input.apiKey, { signal })
+        const status = await coordinator.setApiKey(input.apiKey, { signal, region: input.region })
         usageReader?.invalidate()
         return ok(status)
       }

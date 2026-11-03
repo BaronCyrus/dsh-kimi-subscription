@@ -21,6 +21,13 @@ const FAILURE_REASON_KEYS = Object.freeze({
 })
 const QUICK_USAGE_REFRESH_EVENT = 'dsh-kimi-subscription:refresh-quick-usage'
 const QUICK_USAGE_REFRESH_MS = 60_000
+// The host's region IDs, with the copy that names each one.
+const REGION_KEYS = Object.freeze({
+  'mainland-cn': 'regionMainland',
+  global: 'regionGlobal',
+})
+const DEFAULT_REGION = 'mainland-cn'
+const regionKey = value => Object.hasOwn(REGION_KEYS, value) ? REGION_KEYS[value] : undefined
 
 const zh = {
   nav: 'Kimi 订阅',
@@ -31,6 +38,13 @@ const zh = {
   disconnected: '未连接',
   methodApiKey: 'Kimi Code 订阅 API Key',
   methodOauth: 'Kimi 账号设备登录',
+  regionTitle: '服务站点',
+  regionHint: '选择开通 Kimi Code 会员的站点。API Key 和账号登录都连接到所选站点；连接后要换站点，请先断开再重新连接。',
+  regionMainland: '国内站 · kimi.com',
+  regionMainlandHint: '请求发往 api.kimi.com，账号登录使用 auth.kimi.com。',
+  regionGlobal: '国际站 · kimi.ai',
+  regionGlobalHint: '请求发往 api.kimi.ai，账号登录使用 auth.kimi.ai。',
+  connectedRegion: '服务站点：{region}',
   apiKeyTitle: '订阅 API Key（推荐）',
   apiKeyHint: '请使用 Kimi Code 控制台生成的订阅 API Key，不要填写 Kimi Open Platform 的按量计费密钥。',
   apiKeyPlaceholder: '粘贴 Kimi Code 订阅 API Key',
@@ -115,6 +129,13 @@ const en = {
   disconnected: 'Not connected',
   methodApiKey: 'Kimi Code subscription API key',
   methodOauth: 'Kimi account device sign-in',
+  regionTitle: 'Kimi Code site',
+  regionHint: 'Choose the site where your Kimi Code membership is registered. The API key and account sign-in both connect to that site; to change sites later, disconnect and connect again.',
+  regionMainland: 'China · kimi.com',
+  regionMainlandHint: 'Requests go to api.kimi.com; account sign-in uses auth.kimi.com.',
+  regionGlobal: 'International · kimi.ai',
+  regionGlobalHint: 'Requests go to api.kimi.ai; account sign-in uses auth.kimi.ai.',
+  connectedRegion: 'Site: {region}',
   apiKeyTitle: 'Subscription API key (recommended)',
   apiKeyHint: 'Use a subscription API key created in the Kimi Code console, not a pay-as-you-go Kimi Open Platform key.',
   apiKeyPlaceholder: 'Paste a Kimi Code subscription API key',
@@ -204,7 +225,7 @@ const STYLE = `
 .kimiUsageHeader{display:flex;align-items:center;justify-content:space-between;gap:12px}.kimiUsageList{display:flex;flex-direction:column;gap:14px}.kimiUsageItem{display:flex;flex-direction:column;gap:6px}.kimiUsageMeta{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:13px;line-height:20px}.kimiUsageLabel{font-weight:500}.kimiUsageNumbers{color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}.kimiUsageTrack{height:7px;overflow:hidden;border-radius:999px;background:var(--dsw-alias-bg-module-platform)}.kimiUsageFill{height:100%;border-radius:inherit;background:var(--dsw-alias-brand-primary);transition:width .2s ease}.kimiUsageReset{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:18px}.kimiUsageWallet{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:10px;border-top:1px solid var(--dsw-alias-border-l2);font-size:13px;line-height:20px}
 .kimiComposerUsage{display:inline-flex;align-items:center;flex:0 0 auto;height:28px;box-sizing:border-box;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:20px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;user-select:none}
 .kimiVersionRows{display:flex;flex-direction:column;gap:6px;font-size:13px;line-height:20px}.kimiVersionRow{display:flex;align-items:center;justify-content:space-between;gap:12px}.kimiVersionValue{color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}.kimiVersionUpdated{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:10px;background:var(--dsw-alias-bg-module-platform)}
- .kimiSubscriptionSearchChoices{display:flex;flex-direction:column;gap:10px}.kimiSubscriptionSearchChoice{display:flex;align-items:flex-start;gap:10px;cursor:pointer}.kimiSubscriptionSearchChoice input{margin-top:3px;accent-color:var(--dsw-alias-brand-primary)}.kimiSubscriptionSearchCopy{display:flex;flex-direction:column;gap:2px}.kimiSubscriptionSearchCopy strong{font-size:13px;line-height:20px;font-weight:500}.kimiSubscriptionSearchCopy span{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
+ .kimiSubscriptionChoices{display:flex;flex-direction:column;gap:10px}.kimiSubscriptionChoice{display:flex;align-items:flex-start;gap:10px;cursor:pointer}.kimiSubscriptionChoice input{margin-top:3px;accent-color:var(--dsw-alias-brand-primary)}.kimiSubscriptionChoiceCopy{display:flex;flex-direction:column;gap:2px}.kimiSubscriptionChoiceCopy strong{font-size:13px;line-height:20px;font-weight:500}.kimiSubscriptionChoiceCopy span{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
 @media(max-width:640px){.kimiSubscriptionRow{align-items:flex-start;flex-direction:column}.kimiSubscriptionActions{width:100%}.kimiUsageHeader{align-items:flex-start;flex-direction:column}}
 `
 
@@ -434,6 +455,14 @@ function KimiComposerUsage({ rpc, t, directory }) {
   return <span className="kimiComposerUsage" role="status" aria-label={label} title={title}>{display}</span>
 }
 
+/** One labelled radio option with a one-line explanation. */
+function Choice({ name, value, checked, disabled, onSelect, label, hint }) {
+  return <label className="kimiSubscriptionChoice">
+    <input type="radio" name={name} checked={checked} disabled={disabled} onChange={() => onSelect(value)} />
+    <span className="kimiSubscriptionChoiceCopy"><strong>{label}</strong><span>{hint}</span></span>
+  </label>
+}
+
 function SearchProviderCard({ call, t }) {
   const [pref, setPref] = useState()
   const [busy, setBusy] = useState(false)
@@ -459,16 +488,13 @@ function SearchProviderCard({ call, t }) {
     }).catch(() => setError(true)).finally(() => setBusy(false))
   }
 
-  const choice = (value, label, hint) => <label className="kimiSubscriptionSearchChoice" key={value}>
-    <input type="radio" name="kimi-subscription-search-provider" checked={pref?.searchProvider === value} disabled={busy || pref?.writable !== true} onChange={() => select(value)} />
-    <span className="kimiSubscriptionSearchCopy"><strong>{label}</strong><span>{hint}</span></span>
-  </label>
+  const choice = (value, label, hint) => <Choice key={value} name="kimi-subscription-search-provider" value={value} checked={pref?.searchProvider === value} disabled={busy || pref?.writable !== true} onSelect={select} label={label} hint={hint} />
 
   return <div className="kimiSubscriptionCard">
     <div className="kimiUsageHeader"><h3>{t('searchTitle')}</h3><span className="kimiSubscriptionMethod">{t('searchScope')}</span></div>
     {pref === undefined && !error ? <p className="kimiSubscriptionHint" role="status">{t('searchLoading')}</p> : null}
     {error ? <p className="kimiSubscriptionError" role="alert">{t('searchFailed')}</p> : null}
-    {pref !== undefined ? <div className="kimiSubscriptionSearchChoices" role="radiogroup" aria-label={t('searchTitle')}>
+    {pref !== undefined ? <div className="kimiSubscriptionChoices" role="radiogroup" aria-label={t('searchTitle')}>
       {choice('default', t('searchDefault'), t('searchDefaultHint'))}
       {choice('auto', t('searchAuto'), t('searchAutoHint'))}
       {choice('kimi', t('searchKimi'), t('searchKimiHint'))}
@@ -482,10 +508,18 @@ function KimiSection({ rpc, t }) {
   const [accountError, setAccountError] = useState(false)
   const [flow, setFlow] = useState()
   const [apiKey, setApiKey] = useState('')
+  // The region the next API key or sign-in connects to. It starts on the
+  // region of the current connection, so reconnecting after a disconnect
+  // stays on the same site.
+  const [region, setRegion] = useState(DEFAULT_REGION)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState()
   const generation = useRef(0)
   const call = (endpoint, payload = {}) => rpc.call(CHANNEL, endpoint, payload).then(unwrap)
+
+  useEffect(() => {
+    if (regionKey(account?.region) !== undefined) setRegion(account.region)
+  }, [account?.region])
 
   const loadAccount = () => {
     const current = ++generation.current
@@ -527,7 +561,7 @@ function KimiSection({ rpc, t }) {
   const startLogin = () => {
     setBusy(true)
     setError(undefined)
-    void call('login/start').then(setFlow)
+    void call('login/start', { region }).then(setFlow)
       .catch(() => setError(t('failed')))
       .finally(() => setBusy(false))
   }
@@ -546,7 +580,7 @@ function KimiSection({ rpc, t }) {
     if (value.length === 0) return
     setBusy(true)
     setError(undefined)
-    void call('api-key/set', { apiKey: value }).then(next => {
+    void call('api-key/set', { apiKey: value, region }).then(next => {
       setApiKey('')
       setFlow(undefined)
       setAccount(next)
@@ -576,6 +610,7 @@ function KimiSection({ rpc, t }) {
   const ready = account !== undefined
   const activeFlow = flow !== undefined && !TERMINAL_PHASES.has(flow.phase)
   const method = account?.method === 'oauth' ? t('methodOauth') : t('methodApiKey')
+  const connectedRegionKey = regionKey(account?.region)
   const failureKey = FAILURE_REASON_KEYS[flow?.reason]
   const failureText = error ?? (failureKey === undefined ? t('failed') : t(failureKey))
 
@@ -590,11 +625,19 @@ function KimiSection({ rpc, t }) {
             {ready ? signedIn ? t('connected') : t('disconnected') : t('loading')}
           </div>
           {signedIn ? <div className="kimiSubscriptionMethod">{method}</div> : null}
+          {signedIn && connectedRegionKey !== undefined ? <div className="kimiSubscriptionMethod">{t('connectedRegion').replace('{region}', t(connectedRegionKey))}</div> : null}
         </div>
         {signedIn ? <div className="kimiSubscriptionActions"><Button type="button" variant="outline" disabled={busy} onClick={logout}>{t('logout')}</Button></div> : null}
       </div>
 
       {signedIn ? <p className="kimiSubscriptionHint">{t('readyHint')}</p> : ready && !activeFlow ? <>
+        <div className="kimiSubscriptionFlow">
+          <div><h3>{t('regionTitle')}</h3><p className="kimiSubscriptionHint">{t('regionHint')}</p></div>
+          <div className="kimiSubscriptionChoices" role="radiogroup" aria-label={t('regionTitle')}>
+            <Choice name="kimi-subscription-region" value="mainland-cn" checked={region === 'mainland-cn'} disabled={busy} onSelect={setRegion} label={t('regionMainland')} hint={t('regionMainlandHint')} />
+            <Choice name="kimi-subscription-region" value="global" checked={region === 'global'} disabled={busy} onSelect={setRegion} label={t('regionGlobal')} hint={t('regionGlobalHint')} />
+          </div>
+        </div>
         <form className="kimiSubscriptionForm" onSubmit={saveApiKey}>
           <div><h3>{t('apiKeyTitle')}</h3><p className="kimiSubscriptionHint">{t('apiKeyHint')}</p></div>
           <Input className="kimiSubscriptionInput" type="password" value={apiKey} aria-label={t('apiKeyTitle')} placeholder={t('apiKeyPlaceholder')} autoComplete="off" spellCheck={false} onChange={event => setApiKey(event.currentTarget.value)} />

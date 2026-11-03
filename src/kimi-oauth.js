@@ -1,5 +1,7 @@
 import { brotliDecompressSync, gunzipSync, inflateSync, zstdDecompressSync } from 'node:zlib'
 
+import { DEFAULT_KIMI_REGION, kimiRegionOf, kimiRegionSite } from './kimi-region.js'
+
 /**
  * Kimi Code subscription OAuth, owned by this plugin instead of pi-ai.
  *
@@ -16,11 +18,13 @@ import { brotliDecompressSync, gunzipSync, inflateSync, zstdDecompressSync } fro
  * that cannot rely on the transport, because it is the part that must work
  * before any credential exists.
  *
- * RFC 8628 device authorization against https://auth.kimi.com, JSON responses,
- * no client secret (public client).
+ * RFC 8628 device authorization against the region's authorization server
+ * (https://auth.kimi.com or https://auth.kimi.ai), JSON responses, no client
+ * secret (public client). The client ID is the same in both regions. A token
+ * records the region that issued it, and only that server refreshes it.
  */
 
-export const KIMI_OAUTH_HOST = 'https://auth.kimi.com'
+export const KIMI_OAUTH_HOST = kimiRegionSite(DEFAULT_KIMI_REGION).oauthHost
 export const KIMI_OAUTH_CLIENT_ID = '17e5f671-d194-4dfb-9706-5516cb48c098'
 const DEVICE_CODE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code'
 const REQUEST_TIMEOUT_MS = 30_000
@@ -203,7 +207,7 @@ function readDeviceAuthorization(payload) {
 }
 
 /** Read a token response, reusing the previous refresh token when none is rotated in. */
-function readToken(payload, operation, previousRefresh) {
+function readToken(payload, operation, previousRefresh, region) {
   const access = payload?.access_token
   const refresh = typeof payload?.refresh_token === 'string' && payload.refresh_token !== ''
     ? payload.refresh_token
@@ -214,24 +218,22 @@ function readToken(payload, operation, previousRefresh) {
     || !Number.isFinite(expiresIn) || expiresIn <= 0) {
     throw new KimiOAuthError('oauth/response', `Kimi Code token ${operation} response is missing fields`)
   }
-  return { type: 'oauth', access, refresh, expires: Date.now() + expiresIn * 1000 }
+  return { type: 'oauth', access, refresh, expires: Date.now() + expiresIn * 1000, region }
 }
 
 /**
  * Build the OAuth methods pi-ai's `Models` drives: `login`, `refresh`, `toAuth`.
- * @param options - transport, host, clock, and sleep overrides for tests.
+ * @param options - transport, clock, and sleep overrides for tests.
  * @returns frozen OAuth provider methods.
  */
 export function createKimiOAuth({
   fetchImpl = (...args) => globalThis.fetch(...args),
-  oauthHost = KIMI_OAUTH_HOST,
   now = Date.now,
   pause = sleep,
 } = {}) {
   if (typeof fetchImpl !== 'function') throw new Error('Kimi OAuth requires fetch')
-  const host = String(oauthHost).replace(/\/+$/u, '')
 
-  const exchange = async (device, signal) => {
+  const exchange = async (host, region, device, signal) => {
     const { response, payload } = await requestJson(fetchImpl, `${host}/api/oauth/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -243,7 +245,7 @@ export function createKimiOAuth({
     }, signal)
     if (response.ok) {
       if (typeof payload?.access_token === 'string') {
-        return { kind: 'token', credential: readToken(payload, 'poll', undefined) }
+        return { kind: 'token', credential: readToken(payload, 'poll', undefined, region) }
       }
       throw new KimiOAuthError('oauth/response', `Kimi Code device token response could not be read (status ${response.status})`)
     }
@@ -266,7 +268,7 @@ export function createKimiOAuth({
     throw failure
   }
 
-  const pollForToken = async (device, signal) => {
+  const pollForToken = async (host, region, device, signal) => {
     const deadline = now() + device.expiresInSeconds * 1000
     let intervalMs = Math.max(1, device.intervalSeconds) * 1000
     let failures = 0
@@ -277,7 +279,7 @@ export function createKimiOAuth({
       if (now() >= deadline) throw new KimiOAuthError('oauth/expired', 'Kimi Code device authorization expired. Please restart login.')
       let outcome
       try {
-        outcome = await exchange(device, signal)
+        outcome = await exchange(host, region, device, signal)
       } catch (error) {
         const retryable = error instanceof KimiOAuthError && error.retryable === true
         if (!retryable || failures >= EXCHANGE_MAX_RETRIES) throw error
@@ -298,6 +300,9 @@ export function createKimiOAuth({
 
     async login(interaction) {
       const signal = interaction?.signal
+      // The coordinator passes the region the user chose to sign in on.
+      const region = kimiRegionOf(interaction?.region)
+      const host = kimiRegionSite(region).oauthHost
       const { response, payload } = await requestJson(fetchImpl, `${host}/api/oauth/device_authorization`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -317,10 +322,12 @@ export function createKimiOAuth({
         intervalSeconds: device.intervalSeconds,
         expiresInSeconds: device.expiresInSeconds,
       })
-      return await pollForToken(device, signal)
+      return await pollForToken(host, region, device, signal)
     },
 
     async refresh(credential, signal) {
+      const region = kimiRegionOf(credential.region)
+      const host = kimiRegionSite(region).oauthHost
       let lastError
       for (let attempt = 0; attempt <= EXCHANGE_MAX_RETRIES; attempt += 1) {
         if (attempt > 0) await pause(1000 * 2 ** (attempt - 1), signal)
@@ -335,7 +342,7 @@ export function createKimiOAuth({
           }),
         }, signal)
         if (response.ok && typeof payload?.access_token === 'string') {
-          return readToken(payload, 'refresh', credential.refresh)
+          return readToken(payload, 'refresh', credential.refresh, region)
         }
         if (response.status === 401 || response.status === 403 || payload?.error === 'invalid_grant') {
           throw new KimiOAuthError('oauth/refresh-rejected', `Kimi Code token refresh unauthorized (status ${response.status})${describeOauthError(payload)}`)
@@ -351,7 +358,11 @@ export function createKimiOAuth({
     },
 
     async toAuth(credential) {
-      return { headers: { Authorization: `Bearer ${credential.access}` } }
+      // pi-ai sends the request to this base URL instead of the catalog's.
+      return {
+        headers: { Authorization: `Bearer ${credential.access}` },
+        baseUrl: kimiRegionSite(credential.region).baseUrl,
+      }
     },
   })
 }

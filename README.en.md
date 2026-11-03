@@ -27,6 +27,7 @@ Use Kimi models, web search, and usage information inside DeepSeek Harness witho
 | --- | --- |
 | **Dedicated subscription models** | Adds a `Kimi subscription` group without replacing your existing `kimi-coding` or Open Platform configuration |
 | **Two connection methods** | Accepts a Kimi Code subscription API key or device sign-in; OAuth supports automatic refresh |
+| **China and international sites** | Choose the site your membership belongs to when connecting, China (kimi.com) or International (kimi.ai); models, search, quota, and sign-in all use that site |
 | **Subscription web search** | Leaves existing search routing alone by default; optionally routes by model or uses Kimi search |
 | **Visible quota** | Shows usage, reset times, and reported booster balances in Settings, with a compact remaining-quota display beside the composer |
 | **Update checks in Settings** | Shows current and latest versions; supported npm installs can update directly, while local development installs receive separate guidance |
@@ -50,7 +51,7 @@ Then **manually restart the desktop application** — it reports that changes ta
 
 ### 2. Connect your subscription
 
-Open **Settings → Kimi subscription**. Enter a **subscription API key** created in the Kimi Code console, or follow the **device sign-in** flow.
+Open **Settings → Kimi subscription**. Under **Kimi Code site**, choose the site where your membership is registered, China (kimi.com) or International (kimi.ai). Then enter a **subscription API key** created in the Kimi Code console, or follow the **device sign-in** flow. To change sites later, disconnect and connect again.
 
 > A subscription API key is not a pay-as-you-go Kimi Open Platform key. Do not mix them, or post keys, device codes, or login callbacks in public issues.
 

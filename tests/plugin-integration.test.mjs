@@ -334,3 +334,110 @@ test('Kimi\'s overloaded engine reaches the host as a retryable rate limit', asy
   assert.ok(policy.retryableCodes.includes('RATE_LIMIT'))
   assert.equal(policy.maxRetries, 5)
 })
+
+/** One request header, whatever shape the caller passed the headers in. */
+function headerOf(init, name) {
+  const headers = init?.headers
+  if (headers === undefined) return undefined
+  if (headers instanceof Headers) return headers.get(name) ?? undefined
+  const entries = Array.isArray(headers) ? headers : Object.entries(headers)
+  return entries.find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1]
+}
+
+/** Answer every Kimi endpoint offline and record where each request went. */
+function recordKimiRequests() {
+  const requests = []
+  const realFetch = globalThis.fetch
+  globalThis.fetch = async (input, init) => {
+    const url = String(input instanceof Request ? input.url : input)
+    requests.push({ url, authorization: headerOf(init, 'authorization'), apiKey: headerOf(init, 'x-api-key') })
+    const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
+    if (url.endsWith('/api/oauth/token')) return reply({ access_token: 'fresh-access', refresh_token: 'fresh-refresh', expires_in: 900 })
+    if (url.endsWith('/v1/usages')) return reply({ usage: { used: '1', limit: '10' } })
+    if (url.endsWith('/v1/search')) return reply({ search_results: [{ url: 'https://example.com/a', title: 'A' }] })
+    return reply({ type: 'error', error: { type: 'invalid_request_error', message: 'offline test' } }, 400)
+  }
+  return { requests, restore: () => { globalThis.fetch = realFetch } }
+}
+
+const drain = async stream => { for await (const _ of stream); }
+const question = [{ role: 'user', content: [{ type: 'text', text: 'Is the repository up to date?' }] }]
+
+// Kimi Code's international site has its own API host. A key connected there
+// must reach it for every request, not only the model call.
+test('an international API key sends model, usage, and search requests to kimi.ai', async () => {
+  const host = fakeContext()
+  apply(host.ctx)
+  const handler = host.handled[0].handler
+  const signal = new AbortController().signal
+  const saved = await handler('api-key/set', { apiKey: 'FAKE_SUBSCRIPTION_KEY_FOR_TESTS', region: 'global' }, signal)
+  assert.deepEqual(saved.value, { authenticated: true, provider: PROVIDER, method: 'api-key', region: 'global' })
+  const recorder = recordKimiRequests()
+  try {
+    await drain(host.registered[0].adapter.stream({ provider: PROVIDER, model: 'kimi-for-coding', messages: question })).catch(() => {})
+    const usage = await handler('usage', { force: true }, signal)
+    assert.equal(usage.ok, true)
+    assert.equal(usage.value.summary.used, 1)
+    const search = await host.searchProviders.find(provider => provider.id === 'kimi-subscription').search({ query: 'kimi' })
+    assert.equal(search.sources.length, 1)
+  } finally {
+    recorder.restore()
+  }
+  assert.deepEqual(recorder.requests.map(request => new URL(request.url).origin + new URL(request.url).pathname), [
+    'https://api.kimi.ai/coding/v1/messages',
+    'https://api.kimi.ai/coding/v1/usages',
+    'https://api.kimi.ai/coding/v1/search',
+  ])
+  // The model call carries the stored key although the adapter no longer
+  // passes it as a request override.
+  assert.equal(recorder.requests[0].apiKey, 'FAKE_SUBSCRIPTION_KEY_FOR_TESTS')
+  assert.equal(recorder.requests[1].authorization, 'Bearer FAKE_SUBSCRIPTION_KEY_FOR_TESTS')
+})
+
+test('an international sign-in refreshes on auth.kimi.ai and calls kimi.ai', async () => {
+  const host = fakeContext()
+  await host.ctx.credentials.set(undefined, JSON.stringify({
+    type: 'oauth',
+    access: 'expired-access',
+    refresh: 'stale-refresh',
+    expires: Date.now() - 1000,
+    region: 'global',
+  }))
+  apply(host.ctx)
+  const status = await host.handled[0].handler('status', {}, new AbortController().signal)
+  assert.equal(status.value.region, 'global')
+  const recorder = recordKimiRequests()
+  try {
+    await drain(host.registered[0].adapter.stream({ provider: PROVIDER, model: 'kimi-for-coding', messages: question })).catch(() => {})
+  } finally {
+    recorder.restore()
+  }
+  assert.deepEqual(recorder.requests.map(request => request.url.replace(/\?.*$/u, '')), [
+    'https://auth.kimi.ai/api/oauth/token',
+    'https://api.kimi.ai/coding/v1/messages',
+  ])
+  assert.equal(recorder.requests[1].authorization, 'Bearer fresh-access')
+  // The refreshed token stays with the region that issued it.
+  const stored = JSON.parse((await host.ctx.credentials.resolve()).value)
+  assert.equal(stored.access, 'fresh-access')
+  assert.equal(stored.region, 'global')
+})
+
+test('a key connected before regions existed still calls the mainland-China site', async () => {
+  const host = fakeContext()
+  await host.ctx.credentials.set(undefined, TEST_API_KEY)
+  apply(host.ctx)
+  const status = await host.handled[0].handler('status', {}, new AbortController().signal)
+  assert.equal(status.value.region, 'mainland-cn')
+  const recorder = recordKimiRequests()
+  try {
+    await drain(host.registered[0].adapter.stream({ provider: PROVIDER, model: 'kimi-for-coding', messages: question })).catch(() => {})
+    await host.handled[0].handler('usage', { force: true }, new AbortController().signal)
+  } finally {
+    recorder.restore()
+  }
+  assert.deepEqual(recorder.requests.map(request => request.url.replace(/\?.*$/u, '')), [
+    'https://api.kimi.com/coding/v1/messages',
+    'https://api.kimi.com/coding/v1/usages',
+  ])
+})

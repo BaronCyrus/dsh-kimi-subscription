@@ -70,6 +70,8 @@ test('device login asks for an identity body and stores the rotated credential',
   assert.equal(credential.access, 'access-1')
   assert.equal(credential.refresh, 'refresh-1')
   assert.ok(credential.expires > Date.now())
+  // A sign-in that names no region happens on the mainland-China site.
+  assert.equal(credential.region, 'mainland-cn')
 
   assert.deepEqual(notifications, [{
     type: 'device_code',
@@ -88,6 +90,65 @@ test('device login asks for an identity body and stores the rotated credential',
   assert.equal(calls[0].url, `${KIMI_OAUTH_HOST}/api/oauth/device_authorization`)
   assert.equal(bodyOf(calls[1].init).get('grant_type'), 'urn:ietf:params:oauth:grant-type:device_code')
   assert.equal(bodyOf(calls[1].init).get('device_code'), 'device-code-1')
+})
+
+test('an international sign-in uses kimi.ai and records its region', async () => {
+  const { fetchImpl, calls } = scriptedFetch([
+    json({ access_token: 'access-1', refresh_token: 'refresh-1', expires_in: 900 }),
+  ], {
+    authorization: json(deviceAuthorization({
+      verification_uri: 'https://www.kimi.ai/code/authorize_device',
+      verification_uri_complete: 'https://www.kimi.ai/code/authorize_device?user_code=ABCD-EFGH',
+    })),
+  })
+  const notifications = []
+  const oauth = oauthFor(fetchImpl)
+  const credential = await oauth.login({
+    region: 'global',
+    signal: new AbortController().signal,
+    notify: event => notifications.push(event),
+  })
+  assert.equal(credential.region, 'global')
+  assert.deepEqual(calls.map(call => call.url), [
+    'https://auth.kimi.ai/api/oauth/device_authorization',
+    'https://auth.kimi.ai/api/oauth/token',
+  ])
+  // The OAuth client is the same on both sites.
+  assert.equal(bodyOf(calls[0].init).get('client_id'), KIMI_OAUTH_CLIENT_ID)
+  assert.equal(notifications[0].verificationUri, 'https://www.kimi.ai/code/authorize_device?user_code=ABCD-EFGH')
+  // Requests with the token go to the same site.
+  assert.deepEqual(await oauth.toAuth(credential), {
+    headers: { Authorization: 'Bearer access-1' },
+    baseUrl: 'https://api.kimi.ai/coding',
+  })
+})
+
+test('a token is refreshed only by the authorization server that issued it', async () => {
+  const { fetchImpl, calls } = scriptedFetch([
+    json({ access_token: 'access-2', expires_in: 900 }),
+    json({ access_token: 'access-3', expires_in: 900 }),
+  ])
+  const oauth = oauthFor(fetchImpl)
+  const signal = new AbortController().signal
+  const international = await oauth.refresh({ type: 'oauth', access: 'a', refresh: 'r', expires: 0, region: 'global' }, signal)
+  // A token stored before regions existed came from the mainland-China site.
+  const legacy = await oauth.refresh({ type: 'oauth', access: 'a', refresh: 'r', expires: 0 }, signal)
+  assert.deepEqual(calls.map(call => call.url), [
+    'https://auth.kimi.ai/api/oauth/token',
+    'https://auth.kimi.com/api/oauth/token',
+  ])
+  assert.equal(international.region, 'global')
+  assert.equal(legacy.region, 'mainland-cn')
+  assert.equal((await oauth.toAuth(legacy)).baseUrl, 'https://api.kimi.com/coding')
+})
+
+test('a sign-in for an unknown region sends nothing', async () => {
+  const { fetchImpl, calls } = scriptedFetch([])
+  await assert.rejects(
+    () => oauthFor(fetchImpl).login({ region: 'mars', signal: new AbortController().signal, notify: () => {} }),
+    /region is invalid/u,
+  )
+  assert.equal(calls.length, 0)
 })
 
 test('a compressed token response is decoded even when the header is missing', async () => {

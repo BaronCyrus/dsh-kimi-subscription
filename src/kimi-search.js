@@ -1,10 +1,12 @@
 import { WebError } from '@deepseek-ai/dsh-web'
 
 import { PROVIDER } from './constants.js'
+import { DEFAULT_KIMI_REGION, kimiRegionSite, kimiRegionSiteOfAuth } from './kimi-region.js'
 import { ambientFetch } from './shared-request.js'
 import { authorizationHeader } from './usage.js'
 
-export const KIMI_SEARCH_URL = 'https://api.kimi.com/coding/v1/search'
+/** The mainland-China endpoint; a credential's region picks the one it searches. */
+export const KIMI_SEARCH_URL = kimiRegionSite(DEFAULT_KIMI_REGION).searchUrl
 export const KIMI_SEARCH_PROVIDER_ID = 'kimi-subscription'
 export const KIMI_AUTO_SEARCH_PROVIDER_ID = 'kimi-subscription-auto'
 export const CODEX_PROVIDER = 'openai-codex'
@@ -64,12 +66,12 @@ export function parseKimiSearchResponse(value) {
 
 /**
  * Create the DSH web search provider backed only by the Kimi Code
- * subscription /search endpoint. Credentials stay host-side.
+ * subscription /search endpoint of the credential's region. Credentials stay
+ * host-side.
  */
 export function createKimiSearchProvider({
   getAuth,
   fetchImpl = ambientFetch,
-  url = KIMI_SEARCH_URL,
   timeoutMs = DEFAULT_SEARCH_TIMEOUT_MS,
 } = {}) {
   if (typeof getAuth !== 'function') throw new Error('Kimi search provider requires getAuth')
@@ -84,11 +86,17 @@ export function createKimiSearchProvider({
       if (authorization === undefined) {
         throw new WebError('Kimi Code subscription is not connected', 'WEB_PROVIDER_CREDENTIAL_MISSING')
       }
+      let site
+      try {
+        site = kimiRegionSiteOfAuth(resolution.auth)
+      } catch (error) {
+        throw new WebError('Kimi Code subscription region is not recognized', 'WEB_PROVIDER_ERROR', { cause: error })
+      }
       const timeoutSignal = AbortSignal.timeout(timeoutMs)
       const requestSignal = signal === undefined ? timeoutSignal : AbortSignal.any([signal, timeoutSignal])
       let response
       try {
-        response = await fetchImpl(url, {
+        response = await fetchImpl(site.searchUrl, {
           method: 'POST',
           redirect: 'error',
           headers: {

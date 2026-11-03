@@ -238,6 +238,32 @@ test('a plan rejection is explained instead of being read as an invalid key', ()
   assert.match(highspeed, /"k3\.1-pro-highspeed";/u)
 })
 
+test('a plan rejection from the international site is explained too', () => {
+  // The international site links its upgrade page on kimi.ai.
+  const generic = explainKimiModelEntitlement('401 {"error":{"message":"Upgrade: https://www.kimi.ai/code?from=server_highspeed_error#pricing"}}')
+  assert.ok(generic)
+  assert.match(generic, /本次请求的模型/u)
+  for (const pattern of HOST_FAILURE_PATTERNS) assert.doesNotMatch(generic, pattern)
+})
+
+test('a stored API key names the base URL of its region', async () => {
+  const provider = createKimiSubscriptionProvider()
+  const resolve = credential => provider.auth.apiKey.resolve({
+    ctx: { env: async () => undefined, fileExists: async () => false },
+    credential,
+    signal: new AbortController().signal,
+  })
+  const international = await resolve({ type: 'api_key', key: 'FAKE_SUBSCRIPTION_KEY_FOR_TESTS', region: 'global' })
+  assert.deepEqual(international.auth, { apiKey: 'FAKE_SUBSCRIPTION_KEY_FOR_TESTS', baseUrl: 'https://api.kimi.ai/coding' })
+  const legacy = await resolve({ type: 'api_key', key: 'FAKE_SUBSCRIPTION_KEY_FOR_TESTS' })
+  assert.deepEqual(legacy.auth, { apiKey: 'FAKE_SUBSCRIPTION_KEY_FOR_TESTS', baseUrl: 'https://api.kimi.com/coding' })
+  // No stored key and no ambient one: nothing to resolve.
+  assert.equal(await resolve(undefined), undefined)
+  // pi-ai's own API-key auth keeps its name and login.
+  assert.equal(provider.auth.apiKey.name, 'Kimi API key')
+  assert.equal(typeof provider.auth.apiKey.login, 'function')
+})
+
 test('only a plan rejection is rewritten', () => {
   assert.equal(explainKimiModelEntitlement(undefined), undefined)
   assert.equal(explainKimiModelEntitlement(''), undefined)

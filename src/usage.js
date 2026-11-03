@@ -1,6 +1,8 @@
+import { DEFAULT_KIMI_REGION, kimiRegionSite, kimiRegionSiteOfAuth } from './kimi-region.js'
 import { ambientFetch, waitForSharedRequest } from './shared-request.js'
 
-export const KIMI_USAGE_URL = 'https://api.kimi.com/coding/v1/usages'
+/** The mainland-China endpoint; a credential's region picks the one it reads. */
+export const KIMI_USAGE_URL = kimiRegionSite(DEFAULT_KIMI_REGION).usageUrl
 export const DEFAULT_USAGE_TTL_MS = 60_000
 export const DEFAULT_USAGE_TIMEOUT_MS = 15_000
 
@@ -147,12 +149,14 @@ function statusError(status) {
   return new Error('Could not read Kimi Code subscription usage')
 }
 
-/** Cached, single-flight usage reader. Credentials and response bodies stay host-only. */
+/**
+ * Cached, single-flight usage reader. Credentials and response bodies stay
+ * host-only. Usage is read from the region the credential belongs to.
+ */
 export function createKimiUsageReader({
   getAuth,
   fetchImpl = ambientFetch,
   now = Date.now,
-  url = KIMI_USAGE_URL,
   ttlMs = DEFAULT_USAGE_TTL_MS,
   timeoutMs = DEFAULT_USAGE_TIMEOUT_MS,
 } = {}) {
@@ -167,9 +171,10 @@ export function createKimiUsageReader({
     const resolution = await getAuth()
     const authorization = authorizationHeader(resolution)
     if (authorization === undefined) throw new Error('Kimi Code subscription is not connected')
+    const { usageUrl } = kimiRegionSiteOfAuth(resolution.auth)
     const timeoutSignal = AbortSignal.timeout(timeoutMs)
     const requestSignal = signal === undefined ? timeoutSignal : AbortSignal.any([signal, timeoutSignal])
-    const response = await fetchImpl(url, {
+    const response = await fetchImpl(usageUrl, {
       headers: { Authorization: authorization, Accept: 'application/json' },
       redirect: 'error',
       signal: requestSignal,

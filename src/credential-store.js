@@ -1,4 +1,5 @@
 import { PROVIDER } from './constants.js'
+import { KIMI_REGIONS, kimiRegionOf } from './kimi-region.js'
 
 const abortIfNeeded = options => options?.signal?.throwIfAborted()
 const clone = value => value === undefined ? undefined : structuredClone(value)
@@ -23,11 +24,15 @@ function assertCredential(value) {
   if (value === null || typeof value !== 'object') {
     throw new Error('Kimi credential store received a malformed credential')
   }
+  // A credential stored before regions existed has none and is mainland-China.
+  if (value.region !== undefined && !KIMI_REGIONS.includes(value.region)) {
+    throw new Error('Kimi credential store received an unknown Kimi Code region')
+  }
   if (value.type === 'api_key') {
     if (typeof value.key !== 'string' || value.key.length === 0 || !LEGAL_API_KEY.test(value.key)) {
       throw new Error('Kimi credential store received a malformed API key')
     }
-    return { type: 'api_key', key: value.key }
+    return { type: 'api_key', key: value.key, ...value.region === undefined ? {} : { region: value.region } }
   }
   if (value.type === 'oauth') {
     if (typeof value.access !== 'string' || value.access.length === 0
@@ -147,6 +152,7 @@ export function createKimiAuthService(models, store) {
         authenticated: true,
         provider: PROVIDER,
         method: current.type === 'oauth' ? 'oauth' : 'api-key',
+        region: kimiRegionOf(current.region),
         // Reads are leeway-adjusted, so this is the usable-until time.
         ...(current.type === 'oauth' ? { expiresAt: current.expires } : {}),
       }
@@ -154,13 +160,15 @@ export function createKimiAuthService(models, store) {
     login(interaction) {
       return models.login(PROVIDER, 'oauth', interaction)
     },
+    /** Store a key for the region it was created in; requests with it go there. */
     async setApiKey(apiKey, options) {
       abortIfNeeded(options)
       const value = typeof apiKey === 'string' ? apiKey.trim() : ''
       if (value.length === 0 || !LEGAL_API_KEY.test(value)) {
         throw new Error('Kimi Code subscription API key is invalid')
       }
-      await store.modify(PROVIDER, async () => ({ type: 'api_key', key: value }), options)
+      const region = kimiRegionOf(options?.region)
+      await store.modify(PROVIDER, async () => ({ type: 'api_key', key: value, region }), options)
       return this.status(options)
     },
     logout(options) {

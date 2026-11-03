@@ -68,6 +68,28 @@ test('search provider posts text_query with host-side bearer auth', async () => 
   assert.equal(result.sources.length, 2)
 })
 
+test('search goes to the region the credential belongs to', async () => {
+  const urls = []
+  const providerFor = baseUrl => createKimiSearchProvider({
+    getAuth: async () => ({ auth: { headers: { Authorization: 'Bearer oauth-secret' }, baseUrl } }),
+    fetchImpl: async url => {
+      urls.push(url)
+      return new Response(JSON.stringify(payload), { status: 200 })
+    },
+  })
+  await providerFor('https://api.kimi.ai/coding').search({ query: 'kimi code' })
+  await providerFor('https://api.kimi.com/coding').search({ query: 'kimi code' })
+  assert.deepEqual(urls, ['https://api.kimi.ai/coding/v1/search', KIMI_SEARCH_URL])
+  assert.equal(KIMI_SEARCH_URL, 'https://api.kimi.com/coding/v1/search')
+
+  // A base URL outside the two regions never receives the credential.
+  await assert.rejects(providerFor('https://search.example/coding').search({ query: 'x' }), error => {
+    assert.equal(error.code, 'WEB_PROVIDER_ERROR')
+    return true
+  })
+  assert.equal(urls.length, 2)
+})
+
 test('search provider maps auth and transport failures to web error codes', async () => {
   const missing = createKimiSearchProvider({
     getAuth: async () => undefined,

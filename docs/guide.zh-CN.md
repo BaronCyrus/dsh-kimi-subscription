@@ -26,9 +26,13 @@ dsh-kimi-subscription@1.4.2
 
 ## 登录与凭据
 
-在 **设置 → Kimi 订阅** 中，选择 Kimi Code 订阅 API Key 或设备登录。前者应来自 Kimi Code 控制台，后者按页面提示完成官方授权。
+在 **设置 → Kimi 订阅** 中，先选服务站点，再选择 Kimi Code 订阅 API Key 或设备登录。前者应来自 Kimi Code 控制台，后者按页面提示完成官方授权。
 
-本插件连接 Kimi Code 订阅服务 `https://api.kimi.com/coding`。它与 `api.moonshot.ai` / `api.moonshot.cn` 的按量计费 Open Platform 不同，凭据与额度不能混用。项目不会静默读取环境中的 Open Platform 密钥作为备用。
+Kimi Code 有两个站点，会员开在哪个站点就选哪个。国内站的订阅服务在 `https://api.kimi.com/coding`，账号登录走 `https://auth.kimi.com`；国际站分别是 `https://api.kimi.ai/coding` 和 `https://auth.kimi.ai`。两站的 API 地址见 [Kimi Code 文档](https://www.kimi.com/code/docs/kimi-code/models.html)，授权服务器见官方客户端 [kimi-code](https://github.com/MoonshotAI/kimi-code) 的地区配置。
+
+站点和凭据保存在一起，与官方客户端的做法相同：模型请求、网页搜索、额度读取和 OAuth 刷新都发往连接时选定的站点，令牌只回签发它的授权服务器刷新。插件不会自动探测站点，也不会在一个站点失败后改试另一个。要换站点，先断开再重新连接。加入站点选择之前保存的连接都属于国内站，升级后不变。
+
+两个站点都与 `api.moonshot.ai` / `api.moonshot.cn` 的按量计费 Open Platform 不同，凭据与额度不能混用。项目不会静默读取环境中的 Open Platform 密钥作为备用。
 
 API Key 和 OAuth 凭据由 DSH Host 的凭据服务管理。OAuth 支持自动刷新，但账号撤销授权、登录失效或网络异常仍可能要求重新登录；不要把自动刷新理解为永不掉线。安全边界见 [SECURITY.md](../SECURITY.md)。
 
@@ -53,13 +57,13 @@ Kimi 开放平台的 [定价页](https://platform.kimi.com/docs/pricing/chat) �
 
 ## 额度说明
 
-设置页通过 Kimi Code `/coding/v1/usages` 读取用量，展示响应中实际存在的剩余比例、已用量、重置时间和加量包信息。输入框紧凑显示短窗口与周窗口，并按当前实现每 60 秒刷新。
+设置页通过连接所在站点的 Kimi Code `/coding/v1/usages` 读取用量，展示响应中实际存在的剩余比例、已用量、重置时间和加量包信息。输入框紧凑显示短窗口与周窗口，并按当前实现每 60 秒刷新。
 
 `5h 82%　7d 64%` 仅是显示格式示例，不是你的余额，也不是所有账号都拥有这些窗口。没有可用读数时，到设置页刷新并查看错误；缺失数据不等于额度为零。实现见 [usage.js](../src/usage.js) 和 [client.jsx](../src/client.jsx)。
 
 ## 网页搜索与 Codex 共存
 
-DSH 同一运行环境中只有一个生效的全局搜索提供方槽位；选择聊天模型本身不一定改变搜索来源。本插件注册 `kimi-subscription` 和 `kimi-subscription-auto` 两个搜索提供方，使用 Kimi Code `/coding/v1/search`。
+DSH 同一运行环境中只有一个生效的全局搜索提供方槽位；选择聊天模型本身不一定改变搜索来源。本插件注册 `kimi-subscription` 和 `kimi-subscription-auto` 两个搜索提供方，使用连接所在站点的 Kimi Code `/coding/v1/search`。
 
 | 设置 | 本插件的行为 |
 | --- | --- |
@@ -78,6 +82,8 @@ DSH 同一运行环境中只有一个生效的全局搜索提供方槽位；选�
 **设置页不出现 / 仍是旧版本。** 先确认安装的是正在运行的 profile，然后完整重启 DSH、刷新浏览器。不要仅凭安装命令成功就判断当前进程已加载新代码。
 
 **设备授权失败。** 按页面区分拒绝授权、设备码过期、网络失败等状态；过期时重新发起，网络失败时检查 DSH Host 的连接。不要把所有失败归为密钥无效。
+
+**Key 或登录被拒绝，但会员有效。** 看设置页的「服务站点」是不是开通会员的那个站点。不是的话，断开后选对站点重新连接；插件不会自己换站点。
 
 **能登录、能读额度，但模型失败。** 额度读取与模型调用是不同请求。先看错误是否明确提示模型权限；尝试账号有权使用的模型。仍为认证失败时，再检查凭据来源与登录状态。
 
