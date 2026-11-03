@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.5.0 — 2026-11-03
 
 - Support Kimi Code's international site ([#6](https://github.com/BaronCyrus/dsh-kimi-subscription/issues/6)). Kimi Code runs two sites, China on kimi.com and international on kimi.ai, each with its own API host and authorization server; the [Kimi Code documentation](https://www.kimi.com/code/docs/kimi-code/models.html) lists both API hosts, and the official [kimi-code](https://github.com/MoonshotAI/kimi-code) client lists both authorization servers. Until now every request went to the China hosts: models, usage, and search to `api.kimi.com/coding`, and device sign-in and token refresh to `auth.kimi.com`. The issue reports that an international key is currently accepted there too, which Kimi does not document.
 - **Settings → Kimi subscription** now asks for the site before connecting: **China · kimi.com**, the default and what every earlier version used, or **International · kimi.ai**. As in the official client, the site is stored with the credential. Model requests, usage, web search, and OAuth refreshes made with that credential all go to its site, `api.kimi.ai/coding` and `auth.kimi.ai` for international, and a token is refreshed only by the authorization server that issued it. The connected card names the site. To change sites, disconnect and connect again.
