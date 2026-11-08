@@ -1,0 +1,12 @@
+# The repository root is the plugin, developed against the DSH 0.2.2 host
+# packages. tests/hosts/dsh-0.2.1 holds the DSH 0.2.1 host packages, which
+# `pnpm run test:dsh-0.2.1` runs the same test suite against.
+packages:
+  - tests/hosts/*
+
+# Each DSH release ships one pi-ai, which its llm-pi-ai adapter and this
+# plugin both load. Pair them the same way here; the adapters' own ranges
+# (^1.1.0 and ^1.3.0) would otherwise resolve to the newest pi-ai.
+overrides:
+  '@deepseek-ai/dsh-llm-pi-ai@0.2.1-rc.5>@earendil-works/pi-ai': 1.1.0
+  '@deepseek-ai/dsh-llm-pi-ai@0.2.2-rc.1>@earendil-works/pi-ai': 1.3.0

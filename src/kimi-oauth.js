@@ -1,6 +1,6 @@
 import { brotliDecompressSync, gunzipSync, inflateSync, zstdDecompressSync } from 'node:zlib'
 
-import { DEFAULT_KIMI_REGION, kimiRegionOf, kimiRegionSite } from './kimi-region.js'
+import { DEFAULT_KIMI_REGION, kimiRegionBaseUrl, kimiRegionOf, kimiRegionSite } from './kimi-region.js'
 
 /**
  * Kimi Code subscription OAuth, owned by this plugin instead of pi-ai.
@@ -223,15 +223,20 @@ function readToken(payload, operation, previousRefresh, region) {
 
 /**
  * Build the OAuth methods pi-ai's `Models` drives: `login`, `refresh`, `toAuth`.
- * @param options - transport, clock, and sleep overrides for tests.
+ * @param options - `catalogBaseUrl`, the base URL of the installed pi-ai Kimi
+ *   Code provider, which `toAuth` moves to the token's region; and transport,
+ *   clock, and sleep overrides for tests.
  * @returns frozen OAuth provider methods.
  */
 export function createKimiOAuth({
+  catalogBaseUrl,
   fetchImpl = (...args) => globalThis.fetch(...args),
   now = Date.now,
   pause = sleep,
 } = {}) {
   if (typeof fetchImpl !== 'function') throw new Error('Kimi OAuth requires fetch')
+  // Refuse an unknown catalog now rather than on the first model request.
+  kimiRegionBaseUrl(DEFAULT_KIMI_REGION, catalogBaseUrl)
 
   const exchange = async (host, region, device, signal) => {
     const { response, payload } = await requestJson(fetchImpl, `${host}/api/oauth/token`, {
@@ -361,7 +366,7 @@ export function createKimiOAuth({
       // pi-ai sends the request to this base URL instead of the catalog's.
       return {
         headers: { Authorization: `Bearer ${credential.access}` },
-        baseUrl: kimiRegionSite(credential.region).baseUrl,
+        baseUrl: kimiRegionBaseUrl(credential.region, catalogBaseUrl),
       }
     },
   })

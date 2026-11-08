@@ -8,6 +8,10 @@ import {
   guardKimiStreamAuthRejection,
   withK31ProModels,
 } from '../src/pi-ai-runtime.js'
+import { effortOf, KIMI_API, KIMI_CATALOG_BASE_URL, kimiBaseUrl, kimiModelUrl, thinkingFieldsOf } from './support/kimi-protocol.mjs'
+
+// Thinking fields a request body sent, by name; empty when it sent none.
+const sentThinking = body => Object.entries(thinkingFieldsOf(body)).filter(([, value]) => value !== undefined)
 
 const LOW_HIGH_MAX = {
   off: null,
@@ -23,14 +27,14 @@ test('provider keeps Kimi Code protocol behavior under a distinct DSH route', ()
   const provider = createKimiSubscriptionProvider()
   assert.equal(provider.id, PROVIDER)
   assert.equal(provider.name, DISPLAY_NAME)
-  assert.equal(provider.baseUrl, 'https://api.kimi.com/coding')
+  assert.equal(provider.baseUrl, KIMI_CATALOG_BASE_URL)
   assert.ok(provider.auth.oauth)
   assert.ok(provider.auth.apiKey)
   const models = provider.getModels()
   assert.ok(models.length >= 1)
   assert.ok(models.some(model => model.id === 'k3' || model.id === 'kimi-for-coding'))
   assert.ok(models.every(model => model.provider === PROVIDER))
-  assert.ok(models.every(model => model.api === 'anthropic-messages'))
+  assert.ok(models.every(model => model.api === KIMI_API))
 })
 
 test('kimi-for-coding carries K2.8 Preview metadata', () => {
@@ -92,11 +96,10 @@ test('K2.7 Code Highspeed offers no thinking level and never disables thinking',
   }
   assert.equal(requests.length, 4)
   for (const { url, body } of requests) {
-    assert.ok(url.startsWith('https://api.kimi.com/coding/v1/messages'), url)
+    assert.ok(url.startsWith(kimiModelUrl()), url)
     assert.equal(body.model, 'kimi-for-coding-highspeed')
     // Even forced pi-ai options cannot disable the backend's thinking.
-    assert.equal(body.thinking, undefined)
-    assert.equal(body.output_config, undefined)
+    assert.deepEqual(sentThinking(body), [])
   }
 })
 
@@ -159,15 +162,13 @@ test('a K3.1 Pro request names its model and never disables thinking', async () 
   }
   assert.equal(requests.length, 4)
   for (const { url, body } of requests) {
-    assert.ok(url.startsWith('https://api.kimi.com/coding/v1/messages'), url)
+    assert.ok(url.startsWith(kimiModelUrl()), url)
     assert.equal(body.model, 'k3.1-pro')
   }
   // No level chosen: no thinking field at all, so Kimi applies the model default (high).
-  assert.equal(requests[0].body.thinking, undefined)
-  assert.equal(requests[0].body.output_config, undefined)
+  assert.deepEqual(sentThinking(requests[0].body), [])
   for (const [index, effort] of [[1, 'low'], [2, 'high'], [3, 'max']]) {
-    assert.equal(requests[index].body.thinking.type, 'adaptive')
-    assert.deepEqual(requests[index].body.output_config, { effort })
+    assert.equal(effortOf(requests[index].body), effort)
   }
 })
 
@@ -254,9 +255,9 @@ test('a stored API key names the base URL of its region', async () => {
     signal: new AbortController().signal,
   })
   const international = await resolve({ type: 'api_key', key: 'FAKE_SUBSCRIPTION_KEY_FOR_TESTS', region: 'global' })
-  assert.deepEqual(international.auth, { apiKey: 'FAKE_SUBSCRIPTION_KEY_FOR_TESTS', baseUrl: 'https://api.kimi.ai/coding' })
+  assert.deepEqual(international.auth, { apiKey: 'FAKE_SUBSCRIPTION_KEY_FOR_TESTS', baseUrl: kimiBaseUrl('https://api.kimi.ai') })
   const legacy = await resolve({ type: 'api_key', key: 'FAKE_SUBSCRIPTION_KEY_FOR_TESTS' })
-  assert.deepEqual(legacy.auth, { apiKey: 'FAKE_SUBSCRIPTION_KEY_FOR_TESTS', baseUrl: 'https://api.kimi.com/coding' })
+  assert.deepEqual(legacy.auth, { apiKey: 'FAKE_SUBSCRIPTION_KEY_FOR_TESTS', baseUrl: kimiBaseUrl('https://api.kimi.com') })
   // No stored key and no ambient one: nothing to resolve.
   assert.equal(await resolve(undefined), undefined)
   // pi-ai's own API-key auth keeps its name and login.

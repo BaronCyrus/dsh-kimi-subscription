@@ -9,6 +9,10 @@
  * https://www.kimi.com/code/docs/kimi-code/models.html lists both API hosts;
  * MoonshotAI/kimi-code packages/oauth/src/region.ts lists both authorization
  * servers and sites. The region IDs are the official client's.
+ *
+ * The path of the model API depends on the protocol the installed pi-ai speaks
+ * to Kimi Code, so a region names only its API origin and the model base URL
+ * comes from pi-ai's catalog (`kimiRegionBaseUrl`).
  */
 
 export const KIMI_REGION_MAINLAND_CN = 'mainland-cn'
@@ -19,8 +23,7 @@ export const DEFAULT_KIMI_REGION = KIMI_REGION_MAINLAND_CN
 const KIMI_REGION_SITES = Object.freeze({
   [KIMI_REGION_MAINLAND_CN]: Object.freeze({
     region: KIMI_REGION_MAINLAND_CN,
-    // The Anthropic-compatible base; pi-ai appends /v1/messages.
-    baseUrl: 'https://api.kimi.com/coding',
+    apiOrigin: 'https://api.kimi.com',
     usageUrl: 'https://api.kimi.com/coding/v1/usages',
     searchUrl: 'https://api.kimi.com/coding/v1/search',
     oauthHost: 'https://auth.kimi.com',
@@ -29,7 +32,7 @@ const KIMI_REGION_SITES = Object.freeze({
   }),
   [KIMI_REGION_GLOBAL]: Object.freeze({
     region: KIMI_REGION_GLOBAL,
-    baseUrl: 'https://api.kimi.ai/coding',
+    apiOrigin: 'https://api.kimi.ai',
     usageUrl: 'https://api.kimi.ai/coding/v1/usages',
     searchUrl: 'https://api.kimi.ai/coding/v1/search',
     oauthHost: 'https://auth.kimi.ai',
@@ -57,6 +60,32 @@ export function kimiRegionSite(region) {
   return KIMI_REGION_SITES[kimiRegionOf(region)]
 }
 
+// The model API paths pi-ai has used for Kimi Code: Anthropic Messages under
+// /coding up to pi-ai 1.2, OpenAI Chat Completions under /coding/v1 from 1.3.
+// DSH 0.2.1 ships pi-ai 1.1.0 and DSH 0.2.2 ships 1.3.0.
+const KIMI_CODE_API_PATHS = Object.freeze(['/coding', '/coding/v1'])
+
+/**
+ * The model base URL of a region for the protocol the installed pi-ai speaks:
+ * the catalog's base URL, which names the mainland-China site, moved to the
+ * region's API origin. A catalog base URL outside that site or those paths is
+ * refused, so a credential never goes to a path this module does not know.
+ * @param region - a stored or requested region; undefined is the default.
+ * @param catalogBaseUrl - the base URL of pi-ai's Kimi Code provider.
+ * @returns the base URL requests with this region's credential go to.
+ */
+export function kimiRegionBaseUrl(region, catalogBaseUrl) {
+  const site = kimiRegionSite(region)
+  const mainland = KIMI_REGION_SITES[DEFAULT_KIMI_REGION].apiOrigin
+  const path = typeof catalogBaseUrl === 'string' && catalogBaseUrl.startsWith(mainland)
+    ? catalogBaseUrl.slice(mainland.length)
+    : undefined
+  if (path === undefined || !KIMI_CODE_API_PATHS.includes(path)) {
+    throw new Error('The installed pi-ai Kimi provider names an unexpected Kimi Code base URL')
+  }
+  return `${site.apiOrigin}${path}`
+}
+
 /**
  * The region an auth resolution sends requests to, read from the base URL the
  * provider put in it. Usage and search follow the model requests this way,
@@ -68,7 +97,8 @@ export function kimiRegionSite(region) {
 export function kimiRegionSiteOfAuth(auth) {
   const baseUrl = auth?.baseUrl
   if (baseUrl === undefined) return KIMI_REGION_SITES[DEFAULT_KIMI_REGION]
-  const site = Object.values(KIMI_REGION_SITES).find(entry => entry.baseUrl === baseUrl)
+  const site = Object.values(KIMI_REGION_SITES)
+    .find(entry => KIMI_CODE_API_PATHS.some(path => `${entry.apiOrigin}${path}` === baseUrl))
   if (site === undefined) throw new Error('Kimi Code subscription region is not recognized')
   return site
 }

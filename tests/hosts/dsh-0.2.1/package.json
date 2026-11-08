@@ -1,0 +1,33 @@
+{
+  "name": "dsh-kimi-subscription-host-dsh-0.2.1",
+  "private": true,
+  "description": "The DeepSeek Harness 0.2.1-rc.5 host packages, as the desktop app ships them; `pnpm run test:dsh-0.2.1` runs the test suite against them",
+  "type": "module",
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.5",
+    "@deepseek-ai/cordis-plugin-include": "1.0.10",
+    "@deepseek-ai/cordis-plugin-loader": "1.0.6",
+    "@deepseek-ai/dsh-agent": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-attachment": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-authorization": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-client-connection": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-credentials": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-fs": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-launch-environment": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-llm": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-llm-pi-ai": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-llm-retry": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-sandbox": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-scope": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-session": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-session-projection": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-settings": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-system-prompt": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-web": "0.2.1-rc.5",
+    "@deepseek-ai/schemastery": "3.18.5",
+    "@earendil-works/pi-ai": "1.1.0",
+    "connection-legacy": "npm:@deepseek-ai/dsh-client-connection@0.1.2-alpha.5",
+    "js-yaml": "4.3.2",
+    "semver": "7.7.4"
+  }
+}

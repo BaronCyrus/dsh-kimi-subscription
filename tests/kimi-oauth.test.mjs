@@ -11,6 +11,7 @@ import {
   KimiOAuthError,
 } from '../src/kimi-oauth.js'
 import { createKimiSubscriptionProvider } from '../src/pi-ai-runtime.js'
+import { KIMI_CATALOG_BASE_URL, kimiBaseUrl } from './support/kimi-protocol.mjs'
 
 const json = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), {
   status,
@@ -50,6 +51,7 @@ function scriptedFetch(tokenResponses, { authorization } = {}) {
 }
 
 const oauthFor = (fetchImpl, options = {}) => createKimiOAuth({
+  catalogBaseUrl: KIMI_CATALOG_BASE_URL,
   fetchImpl,
   pause: async () => {},
   ...options,
@@ -119,8 +121,23 @@ test('an international sign-in uses kimi.ai and records its region', async () =>
   // Requests with the token go to the same site.
   assert.deepEqual(await oauth.toAuth(credential), {
     headers: { Authorization: 'Bearer access-1' },
-    baseUrl: 'https://api.kimi.ai/coding',
+    baseUrl: kimiBaseUrl('https://api.kimi.ai'),
   })
+})
+
+// The model path belongs to the protocol pi-ai speaks, not to the region:
+// /coding for Anthropic Messages (pi-ai 1.1.0), /coding/v1 for OpenAI Chat
+// Completions (pi-ai 1.3.0). Kimi answers 404 for the other one.
+test('a token names its region’s host with the catalog’s path for either protocol', async () => {
+  const credential = { type: 'oauth', access: 'token-1', refresh: 'r', expires: 0, region: 'global' }
+  for (const path of ['/coding', '/coding/v1']) {
+    const oauth = createKimiOAuth({ catalogBaseUrl: `https://api.kimi.com${path}`, fetchImpl: async () => assert.fail('no request') })
+    assert.equal((await oauth.toAuth(credential)).baseUrl, `https://api.kimi.ai${path}`)
+    assert.equal((await oauth.toAuth({ ...credential, region: undefined })).baseUrl, `https://api.kimi.com${path}`)
+  }
+  for (const catalogBaseUrl of [undefined, 'https://api.moonshot.ai/v1', 'https://api.kimi.com/coding/v2']) {
+    assert.throws(() => createKimiOAuth({ catalogBaseUrl }), /unexpected Kimi Code base URL/u)
+  }
 })
 
 test('a token is refreshed only by the authorization server that issued it', async () => {
@@ -139,7 +156,7 @@ test('a token is refreshed only by the authorization server that issued it', asy
   ])
   assert.equal(international.region, 'global')
   assert.equal(legacy.region, 'mainland-cn')
-  assert.equal((await oauth.toAuth(legacy)).baseUrl, 'https://api.kimi.com/coding')
+  assert.equal((await oauth.toAuth(legacy)).baseUrl, kimiBaseUrl('https://api.kimi.com'))
 })
 
 test('a sign-in for an unknown region sends nothing', async () => {
@@ -279,7 +296,7 @@ test('the subscription provider drives this plugin’s OAuth, not pi-ai’s', as
   ])
   const provider = createKimiSubscriptionProvider({ oauth: oauthFor(fetchImpl) })
   assert.equal(provider.auth.oauth.isSubscription, true)
-  assert.equal(provider.baseUrl, 'https://api.kimi.com/coding')
+  assert.equal(provider.baseUrl, KIMI_CATALOG_BASE_URL)
   assert.deepEqual(Object.keys(provider.auth.oauth).sort(), ['isSubscription', 'login', 'loginLabel', 'name', 'refresh', 'toAuth'])
   const notifications = []
   const credential = await provider.auth.oauth.login({

@@ -5,7 +5,7 @@ import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { LlmError, resolveRetryPolicy } from '@deepseek-ai/dsh-llm'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 
-import { bindConnectionWebServer } from './connection-webserver.js'
+import { openAccountChannel } from './account-channel.js'
 import { CHANNEL, CREDENTIAL_NAME, DISPLAY_NAME, PROVIDER } from './constants.js'
 import { createKimiAuthService, DshKimiCredentialStore } from './credential-store.js'
 import {
@@ -192,14 +192,7 @@ export function apply(ctx, config) {
   // plugin) can start before it listens. Open the channel once it exists and
   // again whenever it restarts; a host without one has no page to serve.
   ctx.inject(['webServer'], webCtx => {
-    webCtx.effect(() => {
-      // handle() reads webServer on the connection fiber, and the official row
-      // does not inject it there. Attach the running server, then register.
-      if (!bindConnectionWebServer(webCtx)) {
-        throw new Error('Kimi subscription could not bind the DSH web server')
-      }
-      return webCtx.connection.rpc.handle(CHANNEL, handler, { authority: 'loopback' })
-    }, 'kimi-subscription: loopback account RPC')
+    webCtx.effect(() => openAccountChannel(webCtx, CHANNEL, handler), 'kimi-subscription: loopback account RPC')
   })
 }
 

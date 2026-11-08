@@ -8,6 +8,10 @@ import { Context } from '@deepseek-ai/cordis'
 import { LlmRuntime } from '@deepseek-ai/dsh-llm'
 
 import { apply, DISPLAY_NAME, PROVIDER } from '../src/index.js'
+import { apiKeyOf, kimiModelUrl, systemPromptsOf, thinkingFieldsOf, toolsOf } from './support/kimi-protocol.mjs'
+
+// Thinking fields a request body sent, by name; empty when it sent none.
+const sentThinking = body => Object.entries(thinkingFieldsOf(body)).filter(([, value]) => value !== undefined)
 
 // Keep the search-composition editor away from the developer's real profile:
 // profile detection scans $DSH_HOME/profiles, so point it at an empty sandbox.
@@ -97,6 +101,25 @@ test('plugin registers an isolated Kimi subscription group and loopback auth RPC
   assert.deepEqual(updated, { ok: true, value: { searchProvider: 'auto', writable: true, codexDetected: false } })
   const invalid = await host.handled[0].handler('preferences/update', { searchProvider: 'bogus' }, new AbortController().signal)
   assert.equal(invalid.ok, false)
+})
+
+// rpc.handle registers the route on Connection's own context, which the
+// official row gives no webServer. The plugin hands Connection its own web
+// context instead, so the route resolves the server the plugin waited for.
+test('the account channel is registered with the plugin’s own web context as its owner', () => {
+  const host = fakeContext()
+  const registrations = []
+  host.ctx.connection.register = (owner, channel, handler, options) => {
+    registrations.push({ owner, channel, handler, options })
+    return () => {}
+  }
+  apply(host.ctx)
+  assert.equal(host.handled.length, 0)
+  assert.equal(registrations.length, 1)
+  assert.equal(registrations[0].owner, host.ctx)
+  assert.equal(registrations[0].channel, '/kimi-subscription')
+  assert.equal(typeof registrations[0].handler, 'function')
+  assert.deepEqual(registrations[0].options, { authority: 'loopback' })
 })
 
 test('plugin activates on DSH 0.1.7 settings, which has no register method', async () => {
@@ -205,12 +228,10 @@ test('a Kimi request through the host adapter carries the system prompt and tool
   }
   assert.equal(requests.length, 1)
   const { url, body } = requests[0]
-  assert.ok(url.startsWith('https://api.kimi.com/coding/v1/messages'), url)
+  assert.ok(url.startsWith(kimiModelUrl()), url)
   assert.equal(body.model, 'k3.1-pro')
-  assert.deepEqual(body.system?.map(block => block.text), ['Answer as the offline test agent.'])
-  assert.deepEqual(body.tools?.map(entry => [entry.name, entry.description, entry.input_schema]), [
-    [tool.name, tool.description, tool.parameters],
-  ])
+  assert.deepEqual(systemPromptsOf(body), ['Answer as the offline test agent.'])
+  assert.deepEqual(toolsOf(body), [[tool.name, tool.description, tool.parameters]])
 })
 
 // Kimi rejects a K3.1 request that turns thinking off, so the picker must not
@@ -294,10 +315,9 @@ test('the host adapter offers K2.7 Code Highspeed with the default effort only',
   }
   assert.equal(requests.length, 1)
   const { url, body } = requests[0]
-  assert.ok(url.startsWith('https://api.kimi.com/coding/v1/messages'), url)
+  assert.ok(url.startsWith(kimiModelUrl()), url)
   assert.equal(body.model, 'kimi-for-coding-highspeed')
-  assert.equal(body.thinking, undefined)
-  assert.equal(body.output_config, undefined)
+  assert.deepEqual(sentThinking(body), [])
 })
 
 // Kimi answers an overloaded engine with HTTP 429. The host must read that as
@@ -350,7 +370,7 @@ function recordKimiRequests() {
   const realFetch = globalThis.fetch
   globalThis.fetch = async (input, init) => {
     const url = String(input instanceof Request ? input.url : input)
-    requests.push({ url, authorization: headerOf(init, 'authorization'), apiKey: headerOf(init, 'x-api-key') })
+    requests.push({ url, init, authorization: headerOf(init, 'authorization') })
     const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
     if (url.endsWith('/api/oauth/token')) return reply({ access_token: 'fresh-access', refresh_token: 'fresh-refresh', expires_in: 900 })
     if (url.endsWith('/v1/usages')) return reply({ usage: { used: '1', limit: '10' } })
@@ -384,13 +404,13 @@ test('an international API key sends model, usage, and search requests to kimi.a
     recorder.restore()
   }
   assert.deepEqual(recorder.requests.map(request => new URL(request.url).origin + new URL(request.url).pathname), [
-    'https://api.kimi.ai/coding/v1/messages',
+    kimiModelUrl('https://api.kimi.ai'),
     'https://api.kimi.ai/coding/v1/usages',
     'https://api.kimi.ai/coding/v1/search',
   ])
   // The model call carries the stored key although the adapter no longer
   // passes it as a request override.
-  assert.equal(recorder.requests[0].apiKey, 'FAKE_SUBSCRIPTION_KEY_FOR_TESTS')
+  assert.equal(apiKeyOf(recorder.requests[0].init), 'FAKE_SUBSCRIPTION_KEY_FOR_TESTS')
   assert.equal(recorder.requests[1].authorization, 'Bearer FAKE_SUBSCRIPTION_KEY_FOR_TESTS')
 })
 
@@ -414,7 +434,7 @@ test('an international sign-in refreshes on auth.kimi.ai and calls kimi.ai', asy
   }
   assert.deepEqual(recorder.requests.map(request => request.url.replace(/\?.*$/u, '')), [
     'https://auth.kimi.ai/api/oauth/token',
-    'https://api.kimi.ai/coding/v1/messages',
+    kimiModelUrl('https://api.kimi.ai'),
   ])
   assert.equal(recorder.requests[1].authorization, 'Bearer fresh-access')
   // The refreshed token stays with the region that issued it.
@@ -437,7 +457,7 @@ test('a key connected before regions existed still calls the mainland-China site
     recorder.restore()
   }
   assert.deepEqual(recorder.requests.map(request => request.url.replace(/\?.*$/u, '')), [
-    'https://api.kimi.com/coding/v1/messages',
+    kimiModelUrl('https://api.kimi.com'),
     'https://api.kimi.com/coding/v1/usages',
   ])
 })

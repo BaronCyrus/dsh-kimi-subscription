@@ -41,21 +41,28 @@ function retryHarness(t, policy) {
   const session = Session.create('offline-kimi-retry-test')
   const controller = new AbortController()
   const projections = new Map()
+  // Replay the executor's own reducer over real, validated Session events.
+  // No retry-count, policy-key, or delay algorithm is duplicated here.
+  const stateOf = (currentSession, key) => {
+    const projection = projections.get(key)
+    assert.ok(projection)
+    return currentSession.snapshotEvents().reduce(
+      (state, event) => projection.apply(state, event),
+      projection.init(),
+    )
+  }
   let listener
   let dispose
   applyRetry({
+    // DSH 0.2.2 reads state through the handle register returns and checks
+    // that its own fiber is live; DSH 0.2.1 asks sessionProjections by key.
+    fiber: { uid: 1 },
     sessionProjections: {
-      register(projection) { projections.set(projection.key, projection) },
-      stateOf(currentSession, key) {
-        const projection = projections.get(key)
-        assert.ok(projection)
-        // Replay the executor's own reducer over real, validated Session events.
-        // No retry-count, policy-key, or delay algorithm is duplicated here.
-        return currentSession.snapshotEvents().reduce(
-          (state, event) => projection.apply(state, event),
-          projection.init(),
-        )
+      register(projection) {
+        projections.set(projection.key, projection)
+        return { stateOf: currentSession => stateOf(currentSession, projection.key) }
       },
+      stateOf,
     },
     on(event, callback) {
       assert.equal(event, 'agent/request-error')
@@ -70,6 +77,10 @@ function retryHarness(t, policy) {
     session,
     controller,
     events: () => session.snapshotEvents(),
+    // DSH 0.2.2 appends the retry event after awaiting its projection, a few
+    // microtasks after recovery starts; 0.2.1 appends it at once. The mocked
+    // clock leaves setImmediate alone, so this lets either one get there.
+    settle: () => new Promise(resolve => setImmediate(resolve)),
     recover(failure, next = () => assert.fail('eligible failure must be retried')) {
       const pending = listener({
         agent: { session },
@@ -90,6 +101,7 @@ function retryHarness(t, policy) {
 
 async function expectRetry(t, harness, failure, retry, delayMs, next) {
   const pending = harness.recover(failure, next)
+  await harness.settle()
   const scheduled = harness.events().filter(event => event.type === 'llm/retry')
   if (scheduled.length !== retry) {
     // Surface the real append failure (the issue's NaN regression), rather
@@ -197,6 +209,7 @@ test('providerRetryAfterMs above the policy cap is not retried', async t => {
 test('cancellation during backoff never starts the scheduled retry', async t => {
   const harness = retryHarness(t, pluginPolicy(t))
   const pending = harness.recover({ code: 'TIMEOUT', message: 'Synthetic timeout' })
+  await harness.settle()
   if (harness.events().length === 0) await pending
   assert.deepEqual(harness.events().map(event => event.type), ['llm/retry'])
   t.mock.timers.tick(100)
@@ -222,6 +235,7 @@ test('a synthetic request can succeed after the first scheduled retry', async t 
   }
   const result = run()
   result.catch(() => {})
+  await harness.settle()
   if (harness.events().length === 0) await result
   assert.equal(attempts, 1)
   assert.equal(harness.events()[0].data.delayMs, 500)

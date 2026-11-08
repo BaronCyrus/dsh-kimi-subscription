@@ -11,4 +11,4 @@ The host credential adapter, loopback login coordinator, DSH client module build
 
 Kimi and Moonshot AI names and service endpoints are used only to identify the interoperated service. This project is not affiliated with or endorsed by Moonshot AI.
 
-The Connection dependency compatibility patch follows DeepSeek Harness’s public Loader injection and bundle-patch interfaces. The missing `webServer` injection was also reported in https://github.com/deepseek-ai/deepseek-harness/discussions/5926. No upstream transport or authentication implementation is copied into this plugin.
+The account channel uses DeepSeek Harness’s public Loader injection interface and Connection’s own channel registration. The missing `webServer` injection was also reported in https://github.com/deepseek-ai/deepseek-harness/discussions/5926. No upstream transport or authentication implementation is copied into this plugin.

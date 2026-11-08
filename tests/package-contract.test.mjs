@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { existsSync, realpathSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
@@ -14,6 +14,13 @@ const text = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 const piAiDirectory = from => realpathSync(createRequire(from).resolve.paths('@earendil-works/pi-ai')
   .map(path => join(path, '@earendil-works', 'pi-ai'))
   .find(path => existsSync(join(path, 'package.json'))))
+
+/** The package directory that holds a resolved module file. */
+const packageDirectory = file => {
+  let directory = dirname(file)
+  while (!existsSync(join(directory, 'package.json'))) directory = dirname(directory)
+  return realpathSync(directory)
+}
 
 /** The desktop installer's gate: every dsh peer must satisfy the runtime. */
 const incompatiblePeers = (manifest, runtime) => Object.entries(manifest.peerDependencies)
@@ -48,6 +55,8 @@ test('bundle contributes one host row and one DSH client module', async () => {
   assert.deepEqual(incompatiblePeers(manifest, '0.2.0-rc.1'), [])
   assert.deepEqual(incompatiblePeers(manifest, '0.2.0-rc.2'), [])
   assert.deepEqual(incompatiblePeers(manifest, '0.2.1-rc.1'), [])
+  assert.deepEqual(incompatiblePeers(manifest, '0.2.1-rc.5'), [])
+  assert.deepEqual(incompatiblePeers(manifest, '0.2.2-rc.1'), [])
   // The next line is still refused, so the range is a claim about the 0.2 line
   // rather than an unbounded "any future host" promise.
   assert.notDeepEqual(incompatiblePeers(manifest, '0.3.0-rc.1'), [])
@@ -126,15 +135,33 @@ test('client keeps usage reset time readable in light and dark themes', async ()
 })
 
 // DeepSeek Harness.app ships one pi-ai, which its llm-pi-ai adapter and this
-// plugin both load. The development baseline must pair them the same way: the
+// plugin both load. Each host baseline must pair them the same way: the
 // 0.2.0-rc.1 adapter on pi-ai 0.85.1 beside the plugin's 0.87.1 dropped every
-// system prompt and tool from Kimi requests, and no test failed.
-test('the development baseline loads one pi-ai for the host adapter and the plugin', async () => {
-  const adapter = realpathSync(fileURLToPath(new URL('../node_modules/@deepseek-ai/dsh-llm-pi-ai/package.json', import.meta.url)))
-  const plugin = fileURLToPath(new URL('../src/pi-ai-runtime.js', import.meta.url))
-  assert.equal(piAiDirectory(adapter), piAiDirectory(plugin))
-  const installed = JSON.parse(await readFile(join(piAiDirectory(plugin), 'package.json'), 'utf8'))
-  assert.equal(installed.version, JSON.parse(await text('compatibility.json')).piAi)
+// system prompt and tool from Kimi requests, and no test failed. This runs
+// against whichever host the suite runs on: the root's DSH 0.2.2 packages, or
+// the DSH 0.2.1 ones under `pnpm run test:dsh-0.2.1`.
+test('the host baseline loads one pi-ai for the host adapter and the plugin', async () => {
+  const adapterManifest = realpathSync(fileURLToPath(import.meta.resolve('@deepseek-ai/dsh-llm-pi-ai/package.json')))
+  // The tests and the plugin's source resolve pi-ai the same way.
+  const plugin = packageDirectory(fileURLToPath(import.meta.resolve('@earendil-works/pi-ai')))
+  assert.equal(piAiDirectory(adapterManifest), plugin)
+  const { version: host } = JSON.parse(await readFile(adapterManifest, 'utf8'))
+  const line = `${semver.major(host)}.${semver.minor(host)}.${semver.patch(host)}`
+  const installed = JSON.parse(await readFile(join(plugin, 'package.json'), 'utf8'))
+  assert.equal(installed.version, JSON.parse(await text('compatibility.json')).piAi[line])
+})
+
+// `pnpm run test` runs the suite twice: on the root's DSH 0.2.2 packages, then
+// on tests/hosts/dsh-0.2.1 through its resolver hook. Each run must reach the
+// host packages it names, or both runs would quietly test the same host.
+test('the suite runs on the host packages it names', async () => {
+  const host = process.env.DSH_KIMI_TEST_HOST
+  const manifest = JSON.parse(await text(host === undefined ? 'package.json' : `tests/hosts/${host}/package.json`))
+  for (const name of ['@deepseek-ai/cordis', '@deepseek-ai/cordis-plugin-loader', '@deepseek-ai/dsh-llm-pi-ai', '@earendil-works/pi-ai']) {
+    const directory = packageDirectory(fileURLToPath(import.meta.resolve(name)))
+    const { version } = JSON.parse(await readFile(join(directory, 'package.json'), 'utf8'))
+    assert.equal(version, manifest.devDependencies[name], `${name} under ${host ?? 'the root baseline'}`)
+  }
 })
 
 test('host keeps subscription route separate from generic kimi-coding configuration', async () => {

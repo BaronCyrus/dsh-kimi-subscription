@@ -2,7 +2,7 @@ import { kimiCodingProvider as createKimiCodingProvider } from '@earendil-works/
 
 import { DISPLAY_NAME, PROVIDER } from './constants.js'
 import { createKimiOAuth } from './kimi-oauth.js'
-import { kimiRegionSite } from './kimi-region.js'
+import { kimiRegionBaseUrl } from './kimi-region.js'
 
 export { createModels } from '@earendil-works/pi-ai'
 export { createKimiOAuth, KimiOAuthError, classifyKimiOAuthFailure } from './kimi-oauth.js'
@@ -96,14 +96,15 @@ const K28_PREVIEW_MODEL_PATCH = Object.freeze({
 })
 
 // Kimi Code serves `kimi-for-coding-highspeed` as K2.7 Code Highspeed, which
-// always thinks and takes no effort level. pi-ai's catalog gives it no
+// always thinks and takes no effort level. pi-ai 1.1.0's catalog gives it no
 // thinking map, so pi-ai offers Off through High and, with no level chosen,
 // sends a request that disables thinking; Kimi serves that request with K2.8
-// Preview without thinking. DSH uses `reasoning` to advertise selectable
-// efforts, not whether the backend thinks. Mark that capability unavailable:
-// reasoning:true plus an all-null map becomes an empty efforts array, which
-// DSH rejects for the entire catalog. Keep the null map as a wire safeguard;
-// requests still omit thinking and Kimi applies its always-on default.
+// Preview without thinking. pi-ai 1.3.0 maps only Off. DSH uses `reasoning`
+// to advertise selectable efforts, not whether the backend thinks. Mark that
+// capability unavailable: reasoning:true plus an all-null map becomes an
+// empty efforts array, which DSH rejects for the entire catalog. Keep the
+// null map as a wire safeguard; requests still omit thinking and Kimi applies
+// its always-on default.
 // https://www.kimi.com/code/docs/kimi-code/models.html
 const K27_CODE_HIGHSPEED_MODEL_PATCH = Object.freeze({
   name: 'Kimi K2.7 Code Highspeed',
@@ -207,15 +208,17 @@ export function guardKimiStreamAuthRejection(stream, onAuthRejected) {
  * key reaches the region it was connected to, as an OAuth token does through
  * `toAuth`.
  * @param apiKey - pi-ai's API-key auth for Kimi Code.
+ * @param catalogBaseUrl - the base URL of pi-ai's Kimi Code provider.
  * @returns the same auth, with each resolution naming its region's base URL.
  */
-function withKimiRegionBaseUrl(apiKey) {
+function withKimiRegionBaseUrl(apiKey, catalogBaseUrl) {
   return Object.freeze({
     ...apiKey,
     async resolve(input) {
       const resolution = await apiKey.resolve(input)
       if (resolution === undefined) return undefined
-      return { ...resolution, auth: { ...resolution.auth, baseUrl: kimiRegionSite(input?.credential?.region).baseUrl } }
+      const baseUrl = kimiRegionBaseUrl(input?.credential?.region, catalogBaseUrl)
+      return { ...resolution, auth: { ...resolution.auth, baseUrl } }
     },
   })
 }
@@ -233,13 +236,20 @@ function withKimiRegionBaseUrl(apiKey) {
  *
  * The catalog keeps pi-ai's mainland-China base URL. Both auth methods name
  * the base URL of the credential's region, and pi-ai sends the request there.
+ * That URL keeps the catalog's path, which follows the protocol: pi-ai 1.1.0
+ * (DSH 0.2.1) speaks Anthropic Messages under /coding, and pi-ai 1.3.0 (DSH
+ * 0.2.2) speaks OpenAI Chat Completions under /coding/v1. The plugin loads the
+ * host's pi-ai, so it always matches the host adapter.
  */
 export function createKimiSubscriptionProvider({ onAuthRejected, oauth, fetchImpl } = {}) {
   const base = createKimiCodingProvider()
   if (base.auth?.oauth === undefined || base.auth?.apiKey === undefined) {
     throw new Error('The installed pi-ai Kimi provider does not expose the required subscription authentication methods')
   }
-  const subscriptionOAuth = oauth ?? createKimiOAuth(fetchImpl === undefined ? {} : { fetchImpl })
+  const subscriptionOAuth = oauth ?? createKimiOAuth({
+    catalogBaseUrl: base.baseUrl,
+    ...(fetchImpl === undefined ? {} : { fetchImpl }),
+  })
   const models = Object.freeze(withK31ProModels(base.getModels()).map(model => Object.freeze({
     ...withKimiCodeMetadata(model),
     provider: PROVIDER,
@@ -250,7 +260,7 @@ export function createKimiSubscriptionProvider({ onAuthRejected, oauth, fetchImp
     baseUrl: base.baseUrl,
     headers: base.headers,
     auth: Object.freeze({
-      apiKey: withKimiRegionBaseUrl(base.auth.apiKey),
+      apiKey: withKimiRegionBaseUrl(base.auth.apiKey, base.baseUrl),
       oauth: subscriptionOAuth,
     }),
     getModels: () => models,
@@ -258,5 +268,3 @@ export function createKimiSubscriptionProvider({ onAuthRejected, oauth, fetchImp
     streamSimple: (model, context, options) => guardKimiStreamAuthRejection(base.streamSimple(model, context, options), onAuthRejected),
   })
 }
-
-export const PI_AI_RUNTIME_VERSION = '1.1.0'

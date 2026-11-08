@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createServer } from 'node:http'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -8,7 +9,7 @@ import { Loader } from '@deepseek-ai/cordis-plugin-loader'
 import { applyEntryPatches } from '@deepseek-ai/cordis-plugin-include'
 import { HostConnectionService, inject as connectionInject } from '@deepseek-ai/dsh-client-connection'
 import { load } from 'js-yaml'
-import { CHANNEL } from '../src/constants.js'
+import { CHANNEL, PROVIDER } from '../src/constants.js'
 import * as kimiPlugin from '../src/index.js'
 import * as legacyConnection from 'connection-legacy'
 
@@ -51,12 +52,16 @@ async function removeEntry(loader, id) {
   while (fiber.inertia) await fiber.inertia
 }
 
-async function compose(patches, { host = '0.2.1', webServer = true, legacy = false, fullPlugin = false } = {}) {
+async function compose(patches, { host = '0.2.1', webServer = true, legacy = false, fullPlugin = false, authenticated = false } = {}) {
   const ctx = new Context()
   await ctx.plugin(Loader)
   const loader = ctx.get('loader')
-  const routes = new Map()
+  // Every start is a new server with its own routes, so a route left on a
+  // stopped server is told apart from one on the running server.
+  const servers = []
   loader.builtins.webserver = { apply(c) {
+    const routes = new Map()
+    servers.push(routes)
     c.provide('webServer', { register(route) {
       assert.equal(routes.has(route.path), false)
       routes.set(route.path, route)
@@ -71,15 +76,19 @@ async function compose(patches, { host = '0.2.1', webServer = true, legacy = fal
     c.provide('web', { searchProviders: new Map(), registerSearchProvider: () => () => {} })
     c.provide('settings', { register: () => ({ get: () => ({ searchProvider: 'default' }), watch: () => () => {} }) })
   } }
+  let connectionStarts = 0
   const connection = { inject: legacy ? legacyConnection.inject : connectionInject, apply(c, config) {
+    connectionStarts += 1
     assert.deepEqual(config.trustedHosts, ['test.invalid'])
     // Real Connection apply reads ctx.credentials before any route is registered.
     void c.credentials
     const Connection = legacy ? legacyConnection.HostConnectionService : HostConnectionService
-    // No browser cookie and (0.2.1+) no API peer cookie: every request is unauthenticated.
-    new Connection(c, [], { isAuthenticated: () => false, authenticateApi: () => undefined })
+    // No API peer cookie (0.2.1+), and a browser cookie only when the case
+    // signs the browser in: otherwise every request is unauthenticated.
+    new Connection(c, [], { isAuthenticated: () => authenticated, authenticateApi: () => undefined })
   } }
-  // Registers the channel without the plugin's web server binding.
+  // Opens a channel through the public API alone, as a plugin would without
+  // passing its own web context to Connection.
   const consumer = { inject: ['connection'], apply(c) {
     c.effect(() => c.connection.rpc.handle(CHANNEL, async () => ({ ok: true, value: {} }), { authority: 'loopback' }))
   } }
@@ -99,7 +108,10 @@ async function compose(patches, { host = '0.2.1', webServer = true, legacy = fal
   }
   return {
     loader,
-    routes,
+    servers,
+    // The routes of the most recently started server.
+    get routes() { return servers.at(-1) ?? new Map() },
+    get connectionStarts() { return connectionStarts },
     rows,
     startWebServer: () => settle(withServer()),
     stopWebServer: () => settle(rows),
@@ -172,7 +184,7 @@ test('the 1.3.8 row patch only ever worked while the service was named webRuntim
 })
 
 for (const version of Object.keys(STARTUP_SERVICE)) {
-  test(`DSH ${version}: Connection alone cannot open a channel without the web server binding`, async () => {
+  test(`DSH ${version}: Connection's public rpc.handle cannot open a channel on the official row`, async () => {
     await assert.rejects(mount(bundle, { host: version }), /cannot get property "webServer" without inject/u)
   })
 
@@ -210,7 +222,53 @@ test('account channel opens once the web server starts after the plugin, and aga
       await host.startWebServer()
       assert.equal(stateOf(host.loader, 'kimi-subscription'), ACTIVE)
       assert.deepEqual([...host.routes.keys()], [CHANNEL])
+      // The channel is on the running server, and nothing stayed on the stopped one.
+      assert.deepEqual(host.servers.map(routes => routes.size), [0, 1])
+      // Connection never restarted with the web server, and its row still does
+      // not wait for one.
+      assert.equal(host.connectionStarts, 1)
+      assert.equal('webServer' in entryOf(host.loader, 'connection').fiber.inject, false)
     } finally {
+      await host.close()
+    }
+  })
+})
+
+// The settings page calls the account channel over HTTP. A signed-in browser
+// reaches the plugin's handler through Connection's own route; any other
+// request stops at Connection's authentication.
+test('a signed-in browser reaches the account handler over HTTP', async () => {
+  await withHome(async () => {
+    const host = await mount(bundle, { host: '0.2.1', fullPlugin: true, authenticated: true })
+    const server = createServer((req, res) => {
+      const route = host.routes.get(CHANNEL)
+      if (route === undefined || !req.url.startsWith(`${CHANNEL}/`)) {
+        res.writeHead(405)
+        res.end()
+        return
+      }
+      route.handler(req, res)
+    })
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+    const call = endpoint => fetch(`http://127.0.0.1:${server.address().port}${CHANNEL}/${endpoint}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'client-request', rpcId: 'compat-1', method: endpoint, payload: {} }),
+    })
+    try {
+      const status = await call('status')
+      assert.equal(status.status, 200)
+      assert.deepEqual(await status.json(), {
+        type: 'server-response',
+        rpcId: 'compat-1',
+        result: { ok: true, value: { authenticated: false, provider: PROVIDER } },
+      })
+      const preferences = await call('preferences/status')
+      assert.equal(preferences.status, 200)
+      assert.equal((await preferences.json()).result.value.searchProvider, 'default')
+    } finally {
+      server.closeAllConnections()
+      await new Promise(resolve => server.close(resolve))
       await host.close()
     }
   })
